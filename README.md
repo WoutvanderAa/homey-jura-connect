@@ -1,164 +1,164 @@
 # Jura Connect — Homey App
 
-Homey-app (SDK v3) voor Jura-koffiemachines met de **WiFi Connect**-module —
-lokaal, geen cloud, geen Jura-account. Praat rechtstreeks met de
-WiFi-dongle op TCP-poort 51515. Momenteel ondersteuning voor de E8
-(dat is wat we in huis hebben), maar de architectuur is generiek:
-protocol-laag en Homey-driver kennen geen enkel E8-specifiek ding,
-alleen de productcatalogus per model is data die je erbij plugt —
-zie "Uitbreiden naar andere modellen" hieronder.
+A Homey app (SDK v3) for Jura coffee machines fitted with the
+**WiFi Connect** module — local, no cloud, no Jura account. Talks
+directly to the WiFi dongle on TCP port 51515. Currently ships support
+for the E8 (that's what we have at home), but the architecture is
+generic: the protocol layer and the Homey driver have no E8-specific
+code at all — only the per-model product catalogue is data you plug
+in, see "Extending to other models" below.
 
-> Deze app is niet gemaakt door, verbonden met, of goedgekeurd door
-> Jura Elektroapparate AG. "Jura" is een merknaam van Jura Elektroapparate
-> AG; deze app is een onafhankelijk, community-gedreven project.
+> This app is not made by, affiliated with, or endorsed by Jura
+> Elektroapparate AG. "Jura" is a trademark of Jura Elektroapparate AG;
+> this app is an independent, community-driven project.
 
-**Bestaat dit al voor Homey?** Nee — op het Homey-forum wordt hier
-sinds 2020 naar gevraagd (zie bv.
-[deze topic](https://community.homey.app/t/j-o-e-app-van-jura-koffieapparaat/33873)),
-zonder dat er ooit een werkende app kwam.
+**Does this already exist for Homey?** No — the Homey forum has been
+asking for this since 2020 (see e.g.
+[this thread](https://community.homey.app/t/j-o-e-app-van-jura-koffieapparaat/33873)),
+without a working app ever showing up.
 
-## Attributie
+## Attribution
 
-Dit is een JavaScript-port van het reverse-engineering-werk in het
-Python-package **[`jura_connect`](https://pypi.org/project/jura-connect/)**
-door **makefu** (`jura-connect-hass` op GitHub), zelf weer afgeleid van
-de J.O.E. Android-app. Zonder dat werk was dit er niet — alle credits
-voor het uitpluizen van het handshake-protocol, de cipher, en de
-machine-XML-catalogus gaan daarheen. Deze repo is een port naar
-Node.js/Homey, geen originele reverse-engineering. Beide projecten zijn
-MIT-licensed (zie `LICENSE`).
+This is a JavaScript port of the reverse-engineering work in the
+Python package **[`jura_connect`](https://pypi.org/project/jura-connect/)**
+by **makefu** (`jura-connect-hass` on GitHub), itself derived from the
+J.O.E. Android app. Without that work this wouldn't exist — all credit
+for figuring out the handshake protocol, the cipher, and the machine
+XML catalogue goes there. This repo is a port to Node.js/Homey, not
+original reverse-engineering. Both projects are MIT-licensed (see
+`LICENSE`).
 
-## Ondersteunde modellen
+## Supported models
 
-| Model | EF-code(s) | Status |
+| Model | EF code(s) | Status |
 |---|---|---|
-| Jura E8 | `EF533`, `EF533V2` | ✅ **live geverifieerd** (art. 15336, hwId `EF538M V01.05`) — pairen, status, brewen |
-| Jura E6 | `EF532`, `EF532V2` | data gebundeld, zelf niet getest (geen E6 in huis) |
-| Jura S8 (EB) | `EF1091` | data gebundeld, meest live-geverifieerde profiel in de bronbibliotheek zelf |
+| Jura E8 | `EF533`, `EF533V2` | ✅ **live-verified** (article 15336, hwId `EF538M V01.05`) — pairing, status, brewing |
+| Jura E6 | `EF532`, `EF532V2` | data bundled, not personally tested (no E6 at home) |
+| Jura S8 (EB) | `EF1091` | data bundled, the most live-verified profile in the source library itself |
 
-Zie **`lib/profiles/README.md`** voor de exacte stappen om een nieuw
-model toe te voegen — het protocol-fundament (`crypto.js`,
-`protocol.js`, `discovery.js`, `juraClient.js`) hoeft daarvoor niet
-aangepast te worden, alleen `lib/models.js` en een nieuw
-`lib/profiles/<EF_CODE>.js`-bestand.
+See **`lib/profiles/README.md`** for the exact steps to add a new
+model — the protocol foundation (`crypto.js`, `protocol.js`,
+`discovery.js`, `juraClient.js`) doesn't need to change for that, only
+`lib/models.js` and a new `lib/profiles/<EF_CODE>.js` file.
 
-Tijdens pairing wordt het model automatisch herkend aan het
-artikelnummer uit de discovery-reply. Herkent de app het artikelnummer
-niet, dan toont de pair-flow een handmatige keuzelijst i.p.v. stilzwijgend
-te gokken.
+During pairing the model is auto-detected from the article number in
+the discovery reply. If the app doesn't recognise the article number,
+the pair flow shows a manual picker instead of silently guessing.
 
-## Wat is al geverifieerd, wat niet
+## What's verified, what isn't
 
-Alles hieronder is **geverifieerd tijdens het bouwen**, niet gegokt —
-door de daadwerkelijke `jura_connect`-Python-package te installeren en
-de JS-poort byte-voor-byte tegen de echte implementatie te testen, en
-sinds v0.1.1 ook live tegen een fysieke machine:
+Everything below was **verified while building**, not guessed — by
+installing the actual `jura_connect` Python package and testing the JS
+port byte-for-byte against the real implementation, and since v0.1.1
+also live against a physical machine:
 
-| Onderdeel | Status |
+| Part | Status |
 |---|---|
-| `lib/crypto.js` (cipher) | ✅ 88 testvectoren, byte-identiek aan Python, incl. alle edge cases |
-| `lib/discovery.js` (UDP-discovery) | ✅ Synthetisch getest én live (vindt echte machines op het LAN) |
-| `lib/profile.js` (recept-encoder, model-onafhankelijk) | ✅ Byte-exact tegen Python's encoder, voor meerdere modellen |
-| `lib/profiles/EF533*.js`, `EF532*.js`, `EF1091.js` | ✅ Productdata komt letterlijk uit de J.O.E.-app zelf |
-| `lib/protocol.js` + `lib/juraClient.js` (handshake/status/brew) | ✅ Mock-server, én live: pairen, status pollen en brewen werken tegen een echte Jura E8 |
-| **Homey pair-flow** (`driver.js`, `pair/*.html`) | ✅ **Live geverifieerd** — zie "Bugs gevonden tijdens live testen" hieronder |
-| **Alles tegen de echte machine** | ✅ **Live geverifieerd** — E8 (art. 15336, hwId `EF538M V01.05`), pairen + status + brewen (espresso) |
+| `lib/crypto.js` (cipher) | ✅ 88 test vectors, byte-identical to Python, incl. all edge cases |
+| `lib/discovery.js` (UDP discovery) | ✅ Tested synthetically and live (finds real machines on the LAN) |
+| `lib/profile.js` (recipe encoder, model-agnostic) | ✅ Byte-exact against Python's encoder, for multiple models |
+| `lib/profiles/EF533*.js`, `EF532*.js`, `EF1091.js` | ✅ Product data comes verbatim from the J.O.E. app itself |
+| `lib/protocol.js` + `lib/juraClient.js` (handshake/status/brew) | ✅ Mock-server tested, and live: pairing, status polling and brewing all work against a real Jura E8 |
+| **Homey pair flow** (`driver.js`, `pair/*.html`) | ✅ **Live-verified** — see "Bugs found during live testing" below |
+| **Everything against the real machine** | ✅ **Live-verified** — E8 (article 15336, hwId `EF538M V01.05`), pairing + status + brewing (espresso) |
 
-Nog niet live geverifieerd: de E6- en S8-profielen (`EF532*`, `EF1091`)
-— die data is nog steeds "gebundeld, niet zelf getest" zoals in de
-tabel hieronder, en het model-niet-herkend-pad (handmatige profielkeuze
-tijdens pairing) is wél live bevestigd te werken, maar dan met een
-E8-profiel gekozen.
+Not yet live-verified: the E6 and S8 profiles (`EF532*`, `EF1091`) —
+that data is still "bundled, not personally tested" as in the table
+above. The model-not-recognised path (manual profile picker during
+pairing) has been live-confirmed to work, but with an E8 profile
+selected.
 
-### Bugs gevonden tijdens live testen (opgelost)
+### Bugs found during live testing (fixed)
 
-Puur protocol-giswerk was er niet meer, maar de Homey-pairflow zelf
-bleek drie losse, elkaar maskerende bugs te bevatten — pas zichtbaar
-zodra je 'm tegen een échte Homey en machine draait:
+There was no protocol-level guesswork left, but the Homey pair flow
+itself turned out to have three separate, mutually-masking bugs —
+only visible once you actually run it against a real Homey and
+machine:
 
-1. **Race condition in `start.html`**: `Homey.showView('connect')` werd
-   aangeroepen vóórdat de `select_machine`-emit was bevestigd, waardoor
-   de volgende view soms met een lege selectie laadde. Fix: navigeren
-   pas in de `.then()` van de emit.
-2. **Overbodige systeem-"Volgende"-knop**: `app.json`'s pair-view
-   `start` had `"navigation": {"next": "connect"}` staan, wat Homey een
-   eigen knop laat tonen die de custom rij-klik-handler volledig
-   omzeilde (en zo de selectie leegliet). Verwijderd — deze pair-flow
-   regelt navigatie zelf.
-3. **`Homey.setNavigationCloseable` bestaat niet** in deze Homey
-   CLI/runtime-versie (v4.4.1, software 13.4.0) en gooide een synchrone
-   fout vóórdat de klik-handler ooit bij `Homey.emit()` kwam — leek van
-   buitenaf alsof klikken niets deed. Fix: `typeof`-check eromheen.
+1. **Race condition in `start.html`**: `Homey.showView('connect')` was
+   called before the `select_machine` emit had been acknowledged, so
+   the next view sometimes loaded with an empty selection. Fix:
+   navigate only inside the emit's `.then()`.
+2. **Redundant system "Next" button**: `app.json`'s `start` pair view
+   had `"navigation": {"next": "connect"}` set, which makes Homey
+   render its own button that completely bypassed the custom
+   row-click handler (leaving the selection empty). Removed — this
+   pair flow handles navigation itself.
+3. **`Homey.setNavigationCloseable` doesn't exist** in this Homey
+   CLI/runtime version (v4.4.1, software 13.4.0) and threw
+   synchronously before the click handler ever reached
+   `Homey.emit()` — from the outside it looked like clicking did
+   nothing. Fix: wrapped in a `typeof` check.
 
-Daarnaast, geen bugs maar netwerk-realiteit:
+Also, not bugs but network reality:
 
-- **UDP-broadcast-discovery steekt niet over VLAN-grenzen**, ook niet
-  met een firewall-*allow*-regel (dat is hoe L3-routing werkt, geen
-  policy-ding). Toegevoegd: een **handmatige IP-invoer** in
-  `start.html` als fallback voor cross-VLAN-setups.
-- De machine wordt na een korte periode van inactiviteit **fysiek
-  onbereikbaar** (auto-off/slaap) — de WiFi-module gaat dan volledig
-  offline. `device.js` toont dan een leesbare "Machine appears to be
-  off or unreachable" i.p.v. een rauwe socket-foutcode. Er is geen
-  protocol-commando om de machine in die staat op afstand wakker te
-  maken (zie "Bekende beperkingen").
+- **UDP broadcast discovery doesn't cross VLAN boundaries**, even with
+  a firewall allow rule (that's how L3 routing works, not a policy
+  thing). Added: a **manual IP entry** field in `start.html` as a
+  fallback for cross-VLAN setups.
+- The machine becomes **physically unreachable** after a short period
+  of inactivity (auto-off/sleep) — the WiFi module goes fully offline.
+  `device.js` then shows a readable "Machine appears to be off or
+  unreachable" instead of a raw socket error code. There's no protocol
+  command to remotely wake the machine from that state (see "Known
+  limitations").
 
 ## Setup
 
-1. **WiFi Connect-module** moet al gekoppeld zijn aan je netwerk via de
-   J.O.E.-app (dat is al het geval bij jullie).
-2. `npm install` — **geen dependencies nodig**, alleen Node's ingebouwde
+1. The **WiFi Connect module** must already be paired to your network
+   via the J.O.E. app (already the case here).
+2. `npm install` — **no dependencies needed**, only Node's built-in
    `net`/`dgram`/`crypto`.
 3. `homey app validate`
-4. `homey app run` — vereist Docker. Draai je tegen een Homey Pro (of
-   Self-Hosted Server) zonder Docker lokaal geïnstalleerd, gebruik dan
-   `homey app run --remote`: dat bouwt en installeert de app direct op
-   de Homey zelf, geen container nodig.
-5. **Pair het device**: de app scant je netwerk (UDP-broadcast poort
-   51515), toont het gedetecteerde model (of een handmatige keuzelijst
-   als dat niet lukt), en dan moet je **op de machine zelf op OK
-   drukken** binnen 60 seconden — exact zoals de J.O.E.-app dat ook
-   doet. De auth-hash wordt opgeslagen; daarna hoeft dat niet meer.
-   Staat Homey op een ander VLAN/subnet dan de machine? UDP-broadcast
-   steekt daar niet overheen — gebruik dan het handmatige IP-veld
-   onderaan het pair-scherm.
+4. `homey app run` — requires Docker. Running against a Homey Pro (or
+   Self-Hosted Server) without Docker installed locally? Use
+   `homey app run --remote` instead: it builds and installs the app
+   directly on the Homey, no container needed.
+5. **Pair the device**: the app scans your network (UDP broadcast on
+   port 51515), shows the detected model (or a manual picker if that
+   fails), and then you need to **press OK on the machine itself**
+   within 60 seconds — exactly like the J.O.E. app does. The auth hash
+   gets stored, so you won't need to do that again.
+   Is Homey on a different VLAN/subnet than the machine? UDP broadcast
+   doesn't cross that — use the manual IP field at the bottom of the
+   pair screen instead.
 
-## Volgende stappen
+## Next steps
 
-- **E6- en S8-profielen live verifiëren** zodra die hardware
-  beschikbaar is — nu nog "gebundelde data, ongetest".
-- **Homey App Store-publicatie** is een apart traject: Athom's eigen
-  review, strengere icoon-richtlijnen dan het huidige ontwerp, en een
-  `author.email` in `app.json` (nu alleen een naam).
-- Icoon (`assets/icon.svg`) is een eerste polish-slag, kan nog verder
-  verfijnd worden.
+- **Live-verify the E6 and S8 profiles** once that hardware is
+  available — currently still "data bundled, untested".
+- **Homey App Store publishing** is a separate track: Athom's own
+  review, stricter icon guidelines than the current design, and an
+  `author.email` in `app.json` (currently just a name).
+- The icon (`assets/icon.svg`) is a first polish pass and can still be
+  refined further.
 
-## Structuur
+## Structure
 
 ```
-app.json / app.js                    — manifest + flow-actie "brew_product"
-lib/crypto.js                        — cipher (geverifieerd, model-onafhankelijk)
-lib/protocol.js                      — TCP-framing + FrameReader
-lib/discovery.js                     — UDP-discovery
-lib/profile.js                       — recept-blob-encoder (model-onafhankelijk)
-lib/models.js                        — model-registry: HIER voeg je een nieuw model toe
-lib/profiles/EF533*.js, EF532*.js, EF1091.js  — gebundelde product-/alert-data per model
-lib/profiles/README.md               — stap-voor-stap: nieuw model toevoegen
+app.json / app.js                    — manifest + "brew_product" flow action
+lib/crypto.js                        — cipher (verified, model-agnostic)
+lib/protocol.js                      — TCP framing + FrameReader
+lib/discovery.js                     — UDP discovery
+lib/profile.js                       — recipe blob encoder (model-agnostic)
+lib/models.js                        — model registry: ADD a new model HERE
+lib/profiles/EF533*.js, EF532*.js, EF1091.js  — bundled product/alert data per model
+lib/profiles/README.md               — step-by-step: adding a new model
 lib/juraClient.js                    — handshake/pair, status, brew
-drivers/jura-machine/driver.js       — custom pair-flow (discovery + model-detectie/-keuze)
-drivers/jura-machine/device.js       — polling, capabilities, brew-methode
-drivers/jura-machine/pair/*.html     — pair-UI
-drivers/jura-machine/assets/alarm_generic.svg — eigen icoon voor de alarm_generic-capability i.p.v. Homey's standaardbel
-assets/icon.svg, assets/banner.svg   — bron-SVG's voor de app-iconen (small/large.png zijn hiervan gerenderd)
+drivers/jura-machine/driver.js       — custom pair flow (discovery + model detection/picker)
+drivers/jura-machine/device.js       — polling, capabilities, brew method
+drivers/jura-machine/pair/*.html     — pair UI
+drivers/jura-machine/assets/alarm_generic.svg — custom icon for the alarm_generic capability, replacing Homey's default bell
+assets/icon.svg, assets/banner.svg   — source SVGs for the app icons (small/large.png are rendered from these)
 ```
 
-## Bekende beperkingen (bewuste scope-keuzes voor v0.1)
+## Known limitations (deliberate scope choices for v0.1)
 
-- Vijf profielen gebundeld (E8×2, E6×2, S8 EB) — niet de volledige
-  88-apparaten-catalogus van de Python-lib. Uitbreiden is een kwestie
-  van data toevoegen, zie `lib/profiles/README.md`.
-- Geen maintenance counters / product-tellers / pmode-slots geport —
-  wel aanwezig in de Python-lib, voor v0.1 bewust weggelaten.
-- Machine kan niet op afstand **aan** gezet worden (het protocol heeft
-  daar geen commando voor, alleen standby); `device.js` geeft dat
-  duidelijk terug i.p.v. het stil te negeren.
+- Five profiles bundled (E8×2, E6×2, S8 EB) — not the full 88-device
+  catalogue from the Python library. Extending it is a matter of
+  adding data, see `lib/profiles/README.md`.
+- No maintenance counters / product counters / pmode slots ported —
+  present in the Python library, deliberately left out for v0.1.
+- The machine cannot be turned **on** remotely (the protocol has no
+  command for that, only standby); `device.js` reports that clearly
+  instead of silently failing.
