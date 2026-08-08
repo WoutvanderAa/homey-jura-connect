@@ -136,7 +136,7 @@ Also, not bugs but network reality:
 ## Structure
 
 ```
-app.json / app.js                    — manifest + "brew_product" flow action
+app.json / app.js                    — manifest + "brew_product" flow action (autocomplete picker, filled from the paired device's own profile)
 lib/crypto.js                        — cipher (verified, model-agnostic)
 lib/protocol.js                      — TCP framing + FrameReader
 lib/discovery.js                     — UDP discovery
