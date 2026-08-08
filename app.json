@@ -1,0 +1,156 @@
+{
+  "id": "nl.brokebyte.juraconnect",
+  "version": "0.1.1",
+  "compatibility": ">=5.0.0",
+  "sdk": 3,
+  "name": {
+    "en": "Jura Connect",
+    "nl": "Jura Connect"
+  },
+  "description": {
+    "en": "Control a Jura coffee machine fitted with the WiFi Connect module — local, no cloud. Currently ships support for the E8; built to be extended to other Jura WiFi models on request (see lib/models.js).",
+    "nl": "Bedien een Jura-koffiemachine met de WiFi Connect-module — lokaal, geen cloud. Op dit moment ondersteuning voor de E8; gebouwd om op verzoek uit te breiden naar andere Jura WiFi-modellen (zie lib/models.js)."
+  },
+  "category": [
+    "appliances"
+  ],
+  "permissions": [],
+  "brandColor": "#4B3621",
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png"
+  },
+  "author": {
+    "name": "Wout"
+  },
+  "drivers": [
+    {
+      "id": "jura-machine",
+      "name": {
+        "en": "Jura Coffee Machine",
+        "nl": "Jura Koffiemachine"
+      },
+      "class": "other",
+      "capabilities": [
+        "onoff",
+        "alarm_generic"
+      ],
+      "images": {
+        "small": "/drivers/jura-machine/assets/images/small.png",
+        "large": "/drivers/jura-machine/assets/images/large.png"
+      },
+      "pair": [
+        {
+          "id": "start"
+        },
+        {
+          "id": "connect"
+        }
+      ],
+      "settings": [
+        {
+          "type": "group",
+          "label": {
+            "en": "Connection",
+            "nl": "Verbinding"
+          },
+          "children": [
+            {
+              "id": "address",
+              "type": "text",
+              "label": {
+                "en": "Machine IP address",
+                "nl": "IP-adres machine"
+              },
+              "hint": {
+                "en": "Set automatically at pairing. Change if your router gave the machine a new IP.",
+                "nl": "Wordt automatisch gezet bij pairing. Aanpassen als de router een nieuw IP gaf."
+              },
+              "value": ""
+            },
+            {
+              "id": "profile_code",
+              "type": "dropdown",
+              "label": {
+                "en": "Machine profile",
+                "nl": "Machineprofiel"
+              },
+              "hint": {
+                "en": "Auto-detected at pairing when possible. Only change this if brewing/product names look wrong. See lib/models.js for the full list — adding a new model there adds it here too.",
+                "nl": "Waar mogelijk automatisch gedetecteerd bij pairing. Alleen aanpassen als zetten/productnamen niet kloppen. Zie lib/models.js voor de volledige lijst — een nieuw model daar toevoegen voegt 'm ook hier toe."
+              },
+              "value": "EF533V2",
+              "values": [
+                {
+                  "id": "EF533",
+                  "label": {
+                    "en": "Jura E8 (older, EF533)",
+                    "nl": "Jura E8 (ouder, EF533)"
+                  }
+                },
+                {
+                  "id": "EF533V2",
+                  "label": {
+                    "en": "Jura E8 (newer, EF533V2)",
+                    "nl": "Jura E8 (nieuwer, EF533V2)"
+                  }
+                },
+                {
+                  "id": "EF532",
+                  "label": {
+                    "en": "Jura E6 (older, EF532)",
+                    "nl": "Jura E6 (ouder, EF532)"
+                  }
+                },
+                {
+                  "id": "EF532V2",
+                  "label": {
+                    "en": "Jura E6 (newer, EF532V2)",
+                    "nl": "Jura E6 (nieuwer, EF532V2)"
+                  }
+                },
+                {
+                  "id": "EF1091",
+                  "label": {
+                    "en": "Jura S8 (EB)",
+                    "nl": "Jura S8 (EB)"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "flow": {
+    "actions": [
+      {
+        "id": "brew_product",
+        "title": {
+          "en": "Brew a product",
+          "nl": "Zet een product"
+        },
+        "titleFormatted": {
+          "en": "Brew [[product]]",
+          "nl": "Zet [[product]]"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "product",
+            "type": "autocomplete",
+            "placeholder": {
+              "en": "Choose a product",
+              "nl": "Kies een product"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

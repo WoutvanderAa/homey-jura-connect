@@ -1,0 +1,8 @@
+{
+  "name": "nl.brokebyte.juraconnect",
+  "version": "0.1.1",
+  "main": "app.js",
+  "license": "MIT",
+  "description": "Homey app for Jura coffee machines with the WiFi Connect module, local-only.",
+  "dependencies": {}
+}

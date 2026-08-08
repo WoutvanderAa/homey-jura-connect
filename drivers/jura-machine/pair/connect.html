@@ -1,0 +1,146 @@
+<style>
+  :root {
+    --brand: #4B3621;
+    --brand-light: #6B4A38;
+    --text: #2B2118;
+    --muted: #8A7A6D;
+    --border: #E8E1DA;
+    --error: #C0392B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 24px 20px; text-align: center; color: var(--text);
+  }
+  .spinner {
+    width: 40px; height: 40px; margin: 30px auto;
+    border: 4px solid var(--border); border-top: 4px solid var(--brand); border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .prompt { font-size: 15px; color: var(--text); margin: 10px 30px; line-height: 1.5; }
+
+  .error-box {
+    margin: 20px 24px; padding: 14px 16px; border-radius: 12px;
+    background: #FBEDEB; color: var(--error); font-size: 14px; line-height: 1.5; text-align: left;
+  }
+
+  .picker { margin: 20px 30px; text-align: left; }
+  .picker p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
+  .picker select {
+    width: 100%; padding: 10px 12px; font-size: 14px; margin-top: 4px;
+    border: 1px solid var(--border); border-radius: 100px; font-family: inherit; color: var(--text);
+    background: #fff;
+  }
+
+  .btn {
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    padding: 10px 20px; border-radius: 100px; border: none; cursor: pointer;
+    transition: opacity 0.15s; margin-top: 18px;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn-primary { background: var(--brand); color: #fff; }
+</style>
+
+<div id="spinner" class="spinner"></div>
+<div id="prompt" class="prompt">Connecting…</div>
+
+<div id="picker" class="picker" style="display:none">
+  <p>Couldn't auto-detect this machine's exact model from its article
+     number. Pick the closest match — you can correct it later in the
+     device settings if brewing looks off.</p>
+  <select id="model-select"></select>
+  <div style="text-align:center">
+    <button id="continue" class="btn btn-primary">Continue</button>
+  </div>
+</div>
+
+<div id="error" class="error-box" style="display:none"></div>
+<div style="text-align:center">
+  <button id="retry" class="btn btn-primary" style="display:none">Try again</button>
+</div>
+
+<script>
+  function showError(message) {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('prompt').style.display = 'none';
+    document.getElementById('picker').style.display = 'none';
+    const el = document.getElementById('error');
+    el.style.display = 'block';
+    el.textContent = message;
+    document.getElementById('retry').style.display = 'inline-block';
+  }
+
+  function runHandshake(manualProfileCode) {
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('prompt').style.display = 'block';
+    document.getElementById('picker').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('retry').style.display = 'none';
+    document.getElementById('prompt').textContent = 'Connecting to the coffee machine…';
+
+    Homey.emit('pair', manualProfileCode)
+      .then((paired) => {
+        document.getElementById('prompt').textContent = 'Connected! Adding device…';
+        return Homey.createDevice({
+          name: paired.name || 'Jura Coffee Machine',
+          data: { id: 'jura-' + paired.address.replace(/\./g, '-') + '-' + Date.now() },
+          store: {
+            address: paired.address,
+            connId: paired.connId,
+            authHash: paired.authHash,
+            profileCode: paired.profileCode,
+          },
+          settings: {
+            address: paired.address,
+            profile_code: paired.profileCode,
+          },
+        });
+      })
+      .then(() => Homey.done())
+      .catch((err) => {
+        showError((err && err.message) ? err.message : String(err));
+      });
+  }
+
+  function showPicker(models) {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('prompt').style.display = 'none';
+    document.getElementById('picker').style.display = 'block';
+
+    const select = document.getElementById('model-select');
+    select.innerHTML = '';
+    models.forEach((m) => {
+      const opt = document.createElement('option');
+      opt.value = m.profileCode;
+      opt.textContent = m.label;
+      select.appendChild(opt);
+    });
+
+    document.getElementById('continue').onclick = () => runHandshake(select.value);
+  }
+
+  function start() {
+    Homey.emit('get_selected_machine')
+      .then((machine) => {
+        if (!machine) throw new Error('No machine selected, please go back and pick one');
+        if (machine.detectedModel) {
+          // Auto-detected from the article number -- go straight to the handshake.
+          runHandshake(undefined);
+        } else {
+          return Homey.emit('list_models').then(showPicker);
+        }
+      })
+      .catch((err) => showError((err && err.message) ? err.message : String(err)));
+  }
+
+  // The driver pushes human-readable progress (e.g. "press OK on the
+  // machine now") while the handshake is in flight.
+  Homey.on('prompt', (message) => {
+    document.getElementById('prompt').textContent = message;
+  });
+
+  document.getElementById('retry').addEventListener('click', start);
+
+  start();
+</script>
