@@ -1,5 +1,7 @@
 # Jura Connect — Homey App
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/woutvanderaa)
+
 A Homey app (SDK v3) for Jura coffee machines fitted with the
 **WiFi Connect** module — local, no cloud, no Jura account. Talks
 directly to the WiFi dongle on TCP port 51515. The protocol layer and
