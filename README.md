@@ -2,11 +2,12 @@
 
 A Homey app (SDK v3) for Jura coffee machines fitted with the
 **WiFi Connect** module — local, no cloud, no Jura account. Talks
-directly to the WiFi dongle on TCP port 51515. Currently ships support
-for the E8 (that's what we have at home), but the architecture is
-generic: the protocol layer and the Homey driver have no E8-specific
-code at all — only the per-model product catalogue is data you plug
-in, see "Extending to other models" below.
+directly to the WiFi dongle on TCP port 51515. Ships with profiles for
+all 72 Jura models in the source library's catalogue; the E8 (what we
+have at home) is the one that's actually been run against real
+hardware. The protocol layer and the Homey driver have no
+model-specific code at all — only the per-model product catalogue is
+data, see "Supported models" below.
 
 > This app is not made by, affiliated with, or endorsed by Jura
 > Elektroapparate AG. "Jura" is a trademark of Jura Elektroapparate AG;
@@ -30,20 +31,43 @@ original reverse-engineering. Both projects are MIT-licensed (see
 
 ## Supported models
 
-| Model | EF code(s) | Status |
-|---|---|---|
-| Jura E8 | `EF533`, `EF533V2` | ✅ **live-verified** (article 15336, hwId `EF538M V01.05`) — pairing, status, brewing |
-| Jura E6 | `EF532`, `EF532V2` | data bundled, not personally tested (no E6 at home) |
-| Jura S8 (EB) | `EF1091` | data bundled, the most live-verified profile in the source library itself |
+**All 72 models** from the `jura_connect` library's `JOE_MACHINES.TXT`
+catalogue are bundled (`lib/profiles/*.js`, one file per EF code,
+mechanically extracted the same way as documented in
+`lib/profiles/README.md`). Only one has actually been run against
+physical hardware:
 
-See **`lib/profiles/README.md`** for the exact steps to add a new
-model — the protocol foundation (`crypto.js`, `protocol.js`,
-`discovery.js`, `juraClient.js`) doesn't need to change for that, only
-`lib/models.js` and a new `lib/profiles/<EF_CODE>.js` file.
+| Model | EF code | Status |
+|---|---|---|
+| Jura E8 (EB) | `EF538` | ✅ **live-verified** (article 15336, hwId `EF538M V01.05`) — pairing, status, brewing, maintenance percent |
+| Everything else (71 profiles) | see `lib/models.js` | data bundled from the source catalogue, product/recipe encoding is a proven protocol-level constant across models, but not personally run against that specific hardware |
 
 During pairing the model is auto-detected from the article number in
-the discovery reply. If the app doesn't recognise the article number,
-the pair flow shows a manual picker instead of silently guessing.
+the discovery reply. If the app doesn't recognise the article number
+(shouldn't happen often now that all known article numbers are
+bundled), the pair flow shows a manual picker — each entry's label
+includes its EF code, which usually matches what the machine itself
+reports (hwId / data plate), so you can match it up directly.
+
+Found a model missing, or think an EF code needs a newer variant? See
+**`lib/profiles/README.md`** for the extraction steps — the protocol
+foundation (`crypto.js`, `protocol.js`, `discovery.js`,
+`juraClient.js`) never needs to change for that, only `lib/models.js`
+and a new `lib/profiles/<EF_CODE>.js` file.
+
+### A mislabeling this caught
+
+The E8 we tested against reported article 15336 / hwId `EF538M
+V01.05` at pairing time. Before all 72 models were bundled, the
+pairing dropdown only offered `EF533`/`EF533V2`, so `EF533V2` was
+picked manually as the closest guess — and brewing worked fine with
+it. Once the full catalogue went in, it turned out article 15336
+actually maps to **`EF538`**, a distinct profile — the hwId string
+said so all along. `EF533V2` happened to be close enough to brew
+correctly, but `EF538`'s product list is the accurate one. If you
+paired before this fix and your machine looks like an E8, check its
+device settings — the correct EF code is right there in the hwId the
+app already showed you during pairing.
 
 ## What's verified, what isn't
 
@@ -57,16 +81,24 @@ also live against a physical machine:
 | `lib/crypto.js` (cipher) | ✅ 88 test vectors, byte-identical to Python, incl. all edge cases |
 | `lib/discovery.js` (UDP discovery) | ✅ Tested synthetically and live (finds real machines on the LAN) |
 | `lib/profile.js` (recipe encoder, model-agnostic) | ✅ Byte-exact against Python's encoder, for multiple models |
-| `lib/profiles/EF533*.js`, `EF532*.js`, `EF1091.js` | ✅ Product data comes verbatim from the J.O.E. app itself |
-| `lib/protocol.js` + `lib/juraClient.js` (handshake/status/brew) | ✅ Mock-server tested, and live: pairing, status polling and brewing all work against a real Jura E8 |
+| `lib/profiles/*.js` (72 profiles) | ✅ Product data comes verbatim from the J.O.E. app's own catalogue; only `EF538`'s data has been cross-checked against a real machine |
+| `lib/protocol.js` + `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server tested, and live: pairing, status polling, brewing and maintenance-percent (`@TG:C0`) all work against a real Jura E8 |
 | **Homey pair flow** (`driver.js`, `pair/*.html`) | ✅ **Live-verified** — see "Bugs found during live testing" below |
-| **Everything against the real machine** | ✅ **Live-verified** — E8 (article 15336, hwId `EF538M V01.05`), pairing + status + brewing (espresso) |
+| **Everything against the real machine** | ✅ **Live-verified** — E8 (article 15336, hwId `EF538M V01.05`), pairing + status + brewing (espresso) + maintenance percent |
 
-Not yet live-verified: the E6 and S8 profiles (`EF532*`, `EF1091`) —
-that data is still "bundled, not personally tested" as in the table
-above. The model-not-recognised path (manual profile picker during
-pairing) has been live-confirmed to work, but with an E8 profile
-selected.
+Not yet live-verified: any of the other 71 bundled profiles. The
+model-not-recognised path (manual profile picker during pairing) has
+been live-confirmed to work.
+
+**Maintenance percent** (`jura_maintenance_cleaning`/`_filter`/`_descale`
+capabilities, reading `@TG:C0`) is live-confirmed to return real
+numbers (cleaning 20%, descale 50%, filter reporting `0xFF` — this
+particular machine has no water filter cartridge fitted, which the app
+correctly treats as "not tracked" rather than showing a bogus 255%).
+What's *not* independently confirmed yet: whether higher percent means
+"closer to due" or "just serviced" — that needs watching a value
+change across an actual cleaning/descaling cycle. Titles are kept
+direction-neutral until that's confirmed.
 
 ### Bugs found during live testing (fixed)
 
@@ -125,13 +157,20 @@ Also, not bugs but network reality:
 
 ## Next steps
 
-- **Live-verify the E6 and S8 profiles** once that hardware is
-  available — currently still "data bundled, untested".
+- **Confirm maintenance-percent direction** by watching the numbers
+  move across a real cleaning/descaling cycle.
+- **Live-verify more of the 72 bundled profiles** as that hardware
+  becomes available.
 - **Homey App Store publishing** is a separate track: Athom's own
   review, stricter icon guidelines than the current design, and an
   `author.email` in `app.json` (currently just a name).
 - The icon (`assets/icon.svg`) is a first polish pass and can still be
   refined further.
+- Raw maintenance counters (`@TG:43`) and per-product brew counters
+  (`@TR:32`) exist in the protocol (see `jura_connect`'s
+  `read_maintenance_counter`/`read_product_counters`) but aren't
+  ported yet — the percent bank (`@TG:C0`) covers the "do I need to
+  clean/descale/change the filter soon" use case more directly.
 
 ## Structure
 
@@ -142,9 +181,9 @@ lib/protocol.js                      — TCP framing + FrameReader
 lib/discovery.js                     — UDP discovery
 lib/profile.js                       — recipe blob encoder (model-agnostic)
 lib/models.js                        — model registry: ADD a new model HERE
-lib/profiles/EF533*.js, EF532*.js, EF1091.js  — bundled product/alert data per model
+lib/profiles/*.js                    — bundled product/alert data, one file per EF code (72 total)
 lib/profiles/README.md               — step-by-step: adding a new model
-lib/juraClient.js                    — handshake/pair, status, brew
+lib/juraClient.js                    — handshake/pair, status, brew, maintenance percent
 drivers/jura-machine/driver.js       — custom pair flow (discovery + model detection/picker)
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
@@ -152,13 +191,11 @@ drivers/jura-machine/assets/alarm_generic.svg — custom icon for the alarm_gene
 assets/icon.svg, assets/banner.svg   — source SVGs for the app icons (small/large.png are rendered from these)
 ```
 
-## Known limitations (deliberate scope choices for v0.1)
+## Known limitations (deliberate scope choices)
 
-- Five profiles bundled (E8×2, E6×2, S8 EB) — not the full 88-device
-  catalogue from the Python library. Extending it is a matter of
-  adding data, see `lib/profiles/README.md`.
-- No maintenance counters / product counters / pmode slots ported —
-  present in the Python library, deliberately left out for v0.1.
+- Raw maintenance counters and per-product brew counters (pmode
+  slots) aren't ported — present in the Python library, only the
+  maintenance-percent bank was ported so far (see "Next steps").
 - The machine cannot be turned **on** remotely (the protocol has no
   command for that, only standby); `device.js` reports that clearly
   instead of silently failing.

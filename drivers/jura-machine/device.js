@@ -7,6 +7,10 @@ const { JuraClient } = require('../../lib/juraClient');
 // How often to poll @HU? for a status frame while idle.
 const POLL_INTERVAL_MS = 30000;
 
+// Maintenance percent (@TG:C0) doesn't change fast enough to need every
+// 30s cycle -- read it once every 10th poll (~5 min) instead.
+const MAINTENANCE_POLL_EVERY = 10;
+
 // The WiFi module goes fully offline when the machine is powered off or
 // hits its auto-off timer -- surface that plainly instead of a raw
 // socket error code.
@@ -32,8 +36,13 @@ class JuraMachineDevice extends Device {
       icon: '/drivers/jura-machine/assets/alarm_generic.svg',
     }).catch(this.error);
 
+    for (const cap of ['jura_maintenance_cleaning', 'jura_maintenance_filter', 'jura_maintenance_descale']) {
+      if (!this.hasCapability(cap)) await this.addCapability(cap).catch(this.error);
+    }
+
     this._client = null;
     this._pollTimer = null;
+    this._pollCount = 0;
 
     this.registerCapabilityListener('onoff', async (value) => {
       // The machine has no remote power-on over this protocol (WifiFrog
@@ -138,6 +147,28 @@ class JuraMachineDevice extends Device {
         this.setWarning(status.errors.join(', ')).catch(this.error);
       } else {
         this.unsetWarning().catch(this.error);
+      }
+
+      this._pollCount += 1;
+      if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) {
+        try {
+          const maint = await this._client.readMaintenancePercent(6000);
+          this.log('Maintenance %:', `cleaning=${maint.cleaning} filter=${maint.filterChange} descale=${maint.descale}`);
+          // 0xFF (255) means this machine doesn't track that maintenance
+          // type (e.g. no water filter cartridge fitted) -- leave the
+          // capability alone rather than showing a nonsense 255%.
+          const setIfTracked = (cap, value) => {
+            if (value === 0xff) return;
+            this.setCapabilityValue(cap, value).catch(this.error);
+          };
+          setIfTracked('jura_maintenance_cleaning', maint.cleaning);
+          setIfTracked('jura_maintenance_filter', maint.filterChange);
+          setIfTracked('jura_maintenance_descale', maint.descale);
+        } catch (err) {
+          // Not every profile's firmware answers @TG:C0 -- don't let this
+          // take the whole device unavailable over an optional reading.
+          this.error('Maintenance percent read failed (non-fatal):', err.message);
+        }
       }
     } catch (err) {
       this.error('Poll failed:', err.message);

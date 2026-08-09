@@ -2,5 +2,9 @@
   "0.1.1": {
     "en": "Verified pairing, status polling and brewing against a real Jura E8; fixed pair-flow bugs; refreshed app/driver icons and pairing UI.",
     "nl": "Pairen, status en brewen geverifieerd tegen echte Jura E8; pair-flow bugs gefixt; nieuw icoon en nettere pairing-schermen."
+  },
+  "0.2.0": {
+    "en": "Bundled all 72 Jura models from the source catalogue; corrected the E8's profile to EF538 (was EF533V2); added maintenance-percent capabilities (cleaning/filter/descale).",
+    "nl": "Alle 72 Jura-modellen uit de broncatalogus gebundeld; E8-profiel gecorrigeerd naar EF538 (was EF533V2); maintenance-percent-capabilities toegevoegd (reiniging/filter/ontkalken)."
   }
 }

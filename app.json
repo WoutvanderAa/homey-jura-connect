@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "compatibility": ">=5.0.0",
   "sdk": 3,
   "name": {
@@ -8,8 +8,8 @@
     "nl": "Jura Connect"
   },
   "description": {
-    "en": "Control a Jura coffee machine fitted with the WiFi Connect module — local, no cloud. Currently ships support for the E8; built to be extended to other Jura WiFi models on request (see lib/models.js).",
-    "nl": "Bedien een Jura-koffiemachine met de WiFi Connect-module — lokaal, geen cloud. Op dit moment ondersteuning voor de E8; gebouwd om op verzoek uit te breiden naar andere Jura WiFi-modellen (zie lib/models.js)."
+    "en": "Control a Jura coffee machine fitted with the WiFi Connect module — local, no cloud. Ships with profiles for 72 Jura models; only the E8 (EF538) is live-verified so far, see the README.",
+    "nl": "Bedien een Jura-koffiemachine met de WiFi Connect-module — lokaal, geen cloud. Wordt geleverd met profielen voor 72 Jura-modellen; alleen de E8 (EF538) is tot nu toe live geverifieerd, zie de README."
   },
   "category": [
     "appliances"
@@ -23,6 +23,62 @@
   "author": {
     "name": "Wout"
   },
+  "capabilities": {
+    "jura_maintenance_cleaning": {
+      "type": "number",
+      "title": {
+        "en": "Cleaning",
+        "nl": "Reiniging"
+      },
+      "units": {
+        "en": "%",
+        "nl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "insights": true
+    },
+    "jura_maintenance_filter": {
+      "type": "number",
+      "title": {
+        "en": "Filter",
+        "nl": "Filter"
+      },
+      "units": {
+        "en": "%",
+        "nl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "insights": true
+    },
+    "jura_maintenance_descale": {
+      "type": "number",
+      "title": {
+        "en": "Descale",
+        "nl": "Ontkalken"
+      },
+      "units": {
+        "en": "%",
+        "nl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "insights": true
+    }
+  },
   "drivers": [
     {
       "id": "jura-machine",
@@ -33,7 +89,10 @@
       "class": "other",
       "capabilities": [
         "onoff",
-        "alarm_generic"
+        "alarm_generic",
+        "jura_maintenance_cleaning",
+        "jura_maintenance_filter",
+        "jura_maintenance_descale"
       ],
       "images": {
         "small": "/drivers/jura-machine/assets/images/small.png",
@@ -76,44 +135,513 @@
                 "nl": "Machineprofiel"
               },
               "hint": {
-                "en": "Auto-detected at pairing when possible. Only change this if brewing/product names look wrong. See lib/models.js for the full list — adding a new model there adds it here too.",
-                "nl": "Waar mogelijk automatisch gedetecteerd bij pairing. Alleen aanpassen als zetten/productnamen niet kloppen. Zie lib/models.js voor de volledige lijst — een nieuw model daar toevoegen voegt 'm ook hier toe."
+                "en": "Auto-detected at pairing when possible. Only change this if brewing/product names look wrong. The EF code in each option matches what the machine itself reports (hwId/data plate).",
+                "nl": "Waar mogelijk automatisch gedetecteerd bij pairing. Alleen aanpassen als zetten/productnamen niet kloppen. De EF-code in elke optie komt overeen met wat de machine zelf rapporteert (hwId/typeplaatje)."
               },
-              "value": "EF533V2",
+              "value": "EF538",
               "values": [
                 {
-                  "id": "EF533",
+                  "id": "EF1089",
                   "label": {
-                    "en": "Jura E8 (older, EF533)",
-                    "nl": "Jura E8 (ouder, EF533)"
+                    "en": "C3 (EA) (EF1089)",
+                    "nl": "C3 (EA) (EF1089)"
                   }
                 },
                 {
-                  "id": "EF533V2",
+                  "id": "EF1090",
                   "label": {
-                    "en": "Jura E8 (newer, EF533V2)",
-                    "nl": "Jura E8 (nieuwer, EF533V2)"
+                    "en": "C8 (EA) (EF1090)",
+                    "nl": "C8 (EA) (EF1090)"
+                  }
+                },
+                {
+                  "id": "EF1184",
+                  "label": {
+                    "en": "C9 (EA) (EF1184)",
+                    "nl": "C9 (EA) (EF1184)"
+                  }
+                },
+                {
+                  "id": "EF529",
+                  "label": {
+                    "en": "D4 (EF529)",
+                    "nl": "D4 (EF529)"
+                  }
+                },
+                {
+                  "id": "EF526",
+                  "label": {
+                    "en": "D6 (EF526)",
+                    "nl": "D6 (EF526)"
+                  }
+                },
+                {
+                  "id": "EF1119",
+                  "label": {
+                    "en": "E10 (EA) (EF1119)",
+                    "nl": "E10 (EA) (EF1119)"
+                  }
+                },
+                {
+                  "id": "EF1031",
+                  "label": {
+                    "en": "E4 (SA) (EF1031)",
+                    "nl": "E4 (SA) (EF1031)"
                   }
                 },
                 {
                   "id": "EF532",
                   "label": {
-                    "en": "Jura E6 (older, EF532)",
-                    "nl": "Jura E6 (ouder, EF532)"
+                    "en": "E6 (EF532)",
+                    "nl": "E6 (EF532)"
+                  }
+                },
+                {
+                  "id": "EF532coffeeonly",
+                  "label": {
+                    "en": "E6 (EF532coffeeonly)",
+                    "nl": "E6 (EF532coffeeonly)"
                   }
                 },
                 {
                   "id": "EF532V2",
                   "label": {
-                    "en": "Jura E6 (newer, EF532V2)",
-                    "nl": "Jura E6 (nieuwer, EF532V2)"
+                    "en": "E6 (EB) (EF532V2)",
+                    "nl": "E6 (EB) (EF532V2)"
+                  }
+                },
+                {
+                  "id": "EF1030",
+                  "label": {
+                    "en": "E6 (EC) (EF1030)",
+                    "nl": "E6 (EC) (EF1030)"
+                  }
+                },
+                {
+                  "id": "EF1121",
+                  "label": {
+                    "en": "E6 (SD) (EF1121)",
+                    "nl": "E6 (SD) (EF1121)"
+                  }
+                },
+                {
+                  "id": "EF533",
+                  "label": {
+                    "en": "E8 (EF533)",
+                    "nl": "E8 (EF533)"
+                  }
+                },
+                {
+                  "id": "EF533V2",
+                  "label": {
+                    "en": "E8 (EF533V2)",
+                    "nl": "E8 (EF533V2)"
+                  }
+                },
+                {
+                  "id": "EF537",
+                  "label": {
+                    "en": "E8 (EA) (EF537)",
+                    "nl": "E8 (EA) (EF537)"
+                  }
+                },
+                {
+                  "id": "EF538",
+                  "label": {
+                    "en": "E8 (EB) (EF538)",
+                    "nl": "E8 (EB) (EF538)"
+                  }
+                },
+                {
+                  "id": "EF1092",
+                  "label": {
+                    "en": "E8 (EC) (EF1092)",
+                    "nl": "E8 (EC) (EF1092)"
+                  }
+                },
+                {
+                  "id": "EF1120",
+                  "label": {
+                    "en": "E8 (SD) (EF1120)",
+                    "nl": "E8 (SD) (EF1120)"
+                  }
+                },
+                {
+                  "id": "EF1013",
+                  "label": {
+                    "en": "ENA 4 (EA) (EF1013)",
+                    "nl": "ENA 4 (EA) (EF1013)"
+                  }
+                },
+                {
+                  "id": "EF1148",
+                  "label": {
+                    "en": "ENA 5 (EA) (EF1148)",
+                    "nl": "ENA 5 (EA) (EF1148)"
+                  }
+                },
+                {
+                  "id": "EF555",
+                  "label": {
+                    "en": "ENA 8 (EF555)",
+                    "nl": "ENA 8 (EF555)"
+                  }
+                },
+                {
+                  "id": "EF1012",
+                  "label": {
+                    "en": "ENA 8 (EA) (EF1012)",
+                    "nl": "ENA 8 (EA) (EF1012)"
+                  }
+                },
+                {
+                  "id": "EF1070",
+                  "label": {
+                    "en": "ENA 8 (EC) (EF1070)",
+                    "nl": "ENA 8 (EC) (EF1070)"
+                  }
+                },
+                {
+                  "id": "EF1065",
+                  "label": {
+                    "en": "GIGA 10 (EA) (EF1065)",
+                    "nl": "GIGA 10 (EA) (EF1065)"
+                  }
+                },
+                {
+                  "id": "EF657",
+                  "label": {
+                    "en": "GIGA 5 (EF657)",
+                    "nl": "GIGA 5 (EF657)"
+                  }
+                },
+                {
+                  "id": "EF566",
+                  "label": {
+                    "en": "GIGA 6 (EF566)",
+                    "nl": "GIGA 6 (EF566)"
+                  }
+                },
+                {
+                  "id": "EF566UL",
+                  "label": {
+                    "en": "GIGA 6 (EF566UL)",
+                    "nl": "GIGA 6 (EF566UL)"
+                  }
+                },
+                {
+                  "id": "EF1097",
+                  "label": {
+                    "en": "GIGA W10 (SA) (EF1097)",
+                    "nl": "GIGA W10 (SA) (EF1097)"
+                  }
+                },
+                {
+                  "id": "EF722UL_W",
+                  "label": {
+                    "en": "GIGA W3 Professional (EF722UL_W)",
+                    "nl": "GIGA W3 Professional (EF722UL_W)"
+                  }
+                },
+                {
+                  "id": "EF722W",
+                  "label": {
+                    "en": "GIGA W3 Professional (EF722W)",
+                    "nl": "GIGA W3 Professional (EF722W)"
+                  }
+                },
+                {
+                  "id": "EF567",
+                  "label": {
+                    "en": "GIGA X3 (EF567)",
+                    "nl": "GIGA X3 (EF567)"
+                  }
+                },
+                {
+                  "id": "EF722",
+                  "label": {
+                    "en": "GIGA X3 Professional (EF722)",
+                    "nl": "GIGA X3 Professional (EF722)"
+                  }
+                },
+                {
+                  "id": "EF722UL",
+                  "label": {
+                    "en": "GIGA X3 Professional (EF722UL)",
+                    "nl": "GIGA X3 Professional (EF722UL)"
+                  }
+                },
+                {
+                  "id": "EF567_c",
+                  "label": {
+                    "en": "GIGA X3c (EF567_c)",
+                    "nl": "GIGA X3c (EF567_c)"
+                  }
+                },
+                {
+                  "id": "EF722_c",
+                  "label": {
+                    "en": "GIGA X3c Professional (EF722_c)",
+                    "nl": "GIGA X3c Professional (EF722_c)"
+                  }
+                },
+                {
+                  "id": "EF659",
+                  "label": {
+                    "en": "GIGA X7 Professional (EF659)",
+                    "nl": "GIGA X7 Professional (EF659)"
+                  }
+                },
+                {
+                  "id": "EF659_c",
+                  "label": {
+                    "en": "GIGA X7c Professional (EF659_c)",
+                    "nl": "GIGA X7c Professional (EF659_c)"
+                  }
+                },
+                {
+                  "id": "EF565",
+                  "label": {
+                    "en": "GIGA X8 (EF565)",
+                    "nl": "GIGA X8 (EF565)"
+                  }
+                },
+                {
+                  "id": "EF565UL",
+                  "label": {
+                    "en": "GIGA X8 (NAA) (EF565UL)",
+                    "nl": "GIGA X8 (NAA) (EF565UL)"
+                  }
+                },
+                {
+                  "id": "EF658S",
+                  "label": {
+                    "en": "GIGA X8 Professional (EF658S)",
+                    "nl": "GIGA X8 Professional (EF658S)"
+                  }
+                },
+                {
+                  "id": "EF565_c",
+                  "label": {
+                    "en": "GIGA X8c (EF565_c)",
+                    "nl": "GIGA X8c (EF565_c)"
+                  }
+                },
+                {
+                  "id": "EF658S_c",
+                  "label": {
+                    "en": "GIGA X8c Professional (EF658S_c)",
+                    "nl": "GIGA X8c Professional (EF658S_c)"
+                  }
+                },
+                {
+                  "id": "EF658",
+                  "label": {
+                    "en": "GIGA X9 Professional (EF658)",
+                    "nl": "GIGA X9 Professional (EF658)"
+                  }
+                },
+                {
+                  "id": "EF658_c",
+                  "label": {
+                    "en": "GIGA X9c Professional (EF658_c)",
+                    "nl": "GIGA X9c Professional (EF658_c)"
+                  }
+                },
+                {
+                  "id": "EF539",
+                  "label": {
+                    "en": "J10 (EA) (EF539)",
+                    "nl": "J10 (EA) (EF539)"
+                  }
+                },
+                {
+                  "id": "EF1139",
+                  "label": {
+                    "en": "J10 twin (NAA) (EF1139)",
+                    "nl": "J10 twin (NAA) (EF1139)"
+                  }
+                },
+                {
+                  "id": "EF557",
+                  "label": {
+                    "en": "J6 (EF557)",
+                    "nl": "J6 (EF557)"
+                  }
+                },
+                {
+                  "id": "EF1069",
+                  "label": {
+                    "en": "J8 (EA) (EF1069)",
+                    "nl": "J8 (EA) (EF1069)"
+                  }
+                },
+                {
+                  "id": "EF1060",
+                  "label": {
+                    "en": "J8 twin (NAA) (EF1060)",
+                    "nl": "J8 twin (NAA) (EF1060)"
+                  }
+                },
+                {
+                  "id": "EF1123",
+                  "label": {
+                    "en": "S10 (EA) (EF1123)",
+                    "nl": "S10 (EA) (EF1123)"
+                  }
+                },
+                {
+                  "id": "EF536",
+                  "label": {
+                    "en": "S8 (EF536)",
+                    "nl": "S8 (EF536)"
                   }
                 },
                 {
                   "id": "EF1091",
                   "label": {
-                    "en": "Jura S8 (EB)",
-                    "nl": "Jura S8 (EB)"
+                    "en": "S8 (EB) (EF1091)",
+                    "nl": "S8 (EB) (EF1091)"
+                  }
+                },
+                {
+                  "id": "EF1151",
+                  "label": {
+                    "en": "S8 (NAB) (EF1151)",
+                    "nl": "S8 (NAB) (EF1151)"
+                  }
+                },
+                {
+                  "id": "EF1115",
+                  "label": {
+                    "en": "W4 (SA) (EF1115)",
+                    "nl": "W4 (SA) (EF1115)"
+                  }
+                },
+                {
+                  "id": "EF1096",
+                  "label": {
+                    "en": "W8 (EA) (EF1096)",
+                    "nl": "W8 (EA) (EF1096)"
+                  }
+                },
+                {
+                  "id": "EF534",
+                  "label": {
+                    "en": "WE6 (EF534)",
+                    "nl": "WE6 (EF534)"
+                  }
+                },
+                {
+                  "id": "EF535",
+                  "label": {
+                    "en": "WE8 (EF535)",
+                    "nl": "WE8 (EF535)"
+                  }
+                },
+                {
+                  "id": "EF535V2",
+                  "label": {
+                    "en": "WE8 (EF535V2)",
+                    "nl": "WE8 (EF535V2)"
+                  }
+                },
+                {
+                  "id": "EF561",
+                  "label": {
+                    "en": "X10 (EF561)",
+                    "nl": "X10 (EF561)"
+                  }
+                },
+                {
+                  "id": "EF1100",
+                  "label": {
+                    "en": "X10 (SA) (EF1100)",
+                    "nl": "X10 (SA) (EF1100)"
+                  }
+                },
+                {
+                  "id": "EF1127",
+                  "label": {
+                    "en": "X10c (EA) (EF1127)",
+                    "nl": "X10c (EA) (EF1127)"
+                  }
+                },
+                {
+                  "id": "EF1105",
+                  "label": {
+                    "en": "X4 (SA) (EF1105)",
+                    "nl": "X4 (SA) (EF1105)"
+                  }
+                },
+                {
+                  "id": "EF1128",
+                  "label": {
+                    "en": "X4c (EA) (EF1128)",
+                    "nl": "X4c (EA) (EF1128)"
+                  }
+                },
+                {
+                  "id": "EF562",
+                  "label": {
+                    "en": "X6 (EF562)",
+                    "nl": "X6 (EF562)"
+                  }
+                },
+                {
+                  "id": "EF560",
+                  "label": {
+                    "en": "X8 (EF560)",
+                    "nl": "X8 (EF560)"
+                  }
+                },
+                {
+                  "id": "EF1106",
+                  "label": {
+                    "en": "Z10 (EB) (EF1106)",
+                    "nl": "Z10 (EB) (EF1106)"
+                  }
+                },
+                {
+                  "id": "EF1208",
+                  "label": {
+                    "en": "Z10 (EC) (EF1208)",
+                    "nl": "Z10 (EC) (EF1208)"
+                  }
+                },
+                {
+                  "id": "EF545",
+                  "label": {
+                    "en": "Z10 (NAA) (EF545)",
+                    "nl": "Z10 (NAA) (EF545)"
+                  }
+                },
+                {
+                  "id": "EF540",
+                  "label": {
+                    "en": "Z6 (EF540)",
+                    "nl": "Z6 (EF540)"
+                  }
+                },
+                {
+                  "id": "EF542",
+                  "label": {
+                    "en": "Z6 (EF542)",
+                    "nl": "Z6 (EF542)"
+                  }
+                },
+                {
+                  "id": "EF541",
+                  "label": {
+                    "en": "Z8 (EF541)",
+                    "nl": "Z8 (EF541)"
+                  }
+                },
+                {
+                  "id": "EF541UL",
+                  "label": {
+                    "en": "Z8 (EF541UL)",
+                    "nl": "Z8 (EF541UL)"
                   }
                 }
               ]
