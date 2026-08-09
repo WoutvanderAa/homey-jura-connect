@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -165,105 +165,91 @@
                   "id": "EF1089",
                   "label": {
                     "en": "C3 (EA) (EF1089) — experimental, untested",
-                    "nl": "C3 (EA) (EF1089) — experimental, untested"
+                    "nl": "C3 (EA) (EF1089) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1090",
                   "label": {
                     "en": "C8 (EA) (EF1090) — experimental, untested",
-                    "nl": "C8 (EA) (EF1090) — experimental, untested"
+                    "nl": "C8 (EA) (EF1090) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1184",
                   "label": {
                     "en": "C9 (EA) (EF1184) — experimental, untested",
-                    "nl": "C9 (EA) (EF1184) — experimental, untested"
+                    "nl": "C9 (EA) (EF1184) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF529",
                   "label": {
                     "en": "D4 (EF529) — experimental, untested",
-                    "nl": "D4 (EF529) — experimental, untested"
+                    "nl": "D4 (EF529) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF526",
                   "label": {
                     "en": "D6 (EF526) — experimental, untested",
-                    "nl": "D6 (EF526) — experimental, untested"
+                    "nl": "D6 (EF526) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1119",
                   "label": {
                     "en": "E10 (EA) (EF1119) — experimental, untested",
-                    "nl": "E10 (EA) (EF1119) — experimental, untested"
+                    "nl": "E10 (EA) (EF1119) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1031",
                   "label": {
                     "en": "E4 (SA) (EF1031) — experimental, untested",
-                    "nl": "E4 (SA) (EF1031) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF532",
-                  "label": {
-                    "en": "E6 (EF532) — experimental, untested",
-                    "nl": "E6 (EF532) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF532coffeeonly",
-                  "label": {
-                    "en": "E6 (EF532coffeeonly) — experimental, untested",
-                    "nl": "E6 (EF532coffeeonly) — experimental, untested"
+                    "nl": "E4 (SA) (EF1031) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF532V2",
                   "label": {
                     "en": "E6 (EB) (EF532V2) — experimental, untested",
-                    "nl": "E6 (EB) (EF532V2) — experimental, untested"
+                    "nl": "E6 (EB) (EF532V2) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1030",
                   "label": {
                     "en": "E6 (EC) (EF1030) — experimental, untested",
-                    "nl": "E6 (EC) (EF1030) — experimental, untested"
+                    "nl": "E6 (EC) (EF1030) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF532",
+                  "label": {
+                    "en": "E6 (EF532) — experimental, untested",
+                    "nl": "E6 (EF532) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF532coffeeonly",
+                  "label": {
+                    "en": "E6 (EF532coffeeonly) — experimental, untested",
+                    "nl": "E6 (EF532coffeeonly) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1121",
                   "label": {
                     "en": "E6 (SD) (EF1121) — experimental, untested",
-                    "nl": "E6 (SD) (EF1121) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF533",
-                  "label": {
-                    "en": "E8 (EF533) — experimental, untested",
-                    "nl": "E8 (EF533) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF533V2",
-                  "label": {
-                    "en": "E8 (EF533V2) — experimental, untested",
-                    "nl": "E8 (EF533V2) — experimental, untested"
+                    "nl": "E6 (SD) (EF1121) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF537",
                   "label": {
                     "en": "E8 (EA) (EF537) — experimental, untested",
-                    "nl": "E8 (EA) (EF537) — experimental, untested"
+                    "nl": "E8 (EA) (EF537) — experimenteel, ongetest"
                   }
                 },
                 {
@@ -277,392 +263,406 @@
                   "id": "EF1092",
                   "label": {
                     "en": "E8 (EC) (EF1092) — experimental, untested",
-                    "nl": "E8 (EC) (EF1092) — experimental, untested"
+                    "nl": "E8 (EC) (EF1092) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF533",
+                  "label": {
+                    "en": "E8 (EF533) — experimental, untested",
+                    "nl": "E8 (EF533) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF533V2",
+                  "label": {
+                    "en": "E8 (EF533V2) — experimental, untested",
+                    "nl": "E8 (EF533V2) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1120",
                   "label": {
                     "en": "E8 (SD) (EF1120) — experimental, untested",
-                    "nl": "E8 (SD) (EF1120) — experimental, untested"
+                    "nl": "E8 (SD) (EF1120) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1013",
                   "label": {
                     "en": "ENA 4 (EA) (EF1013) — experimental, untested",
-                    "nl": "ENA 4 (EA) (EF1013) — experimental, untested"
+                    "nl": "ENA 4 (EA) (EF1013) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1148",
                   "label": {
                     "en": "ENA 5 (EA) (EF1148) — experimental, untested",
-                    "nl": "ENA 5 (EA) (EF1148) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF555",
-                  "label": {
-                    "en": "ENA 8 (EF555) — experimental, untested",
-                    "nl": "ENA 8 (EF555) — experimental, untested"
+                    "nl": "ENA 5 (EA) (EF1148) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1012",
                   "label": {
                     "en": "ENA 8 (EA) (EF1012) — experimental, untested",
-                    "nl": "ENA 8 (EA) (EF1012) — experimental, untested"
+                    "nl": "ENA 8 (EA) (EF1012) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1070",
                   "label": {
                     "en": "ENA 8 (EC) (EF1070) — experimental, untested",
-                    "nl": "ENA 8 (EC) (EF1070) — experimental, untested"
+                    "nl": "ENA 8 (EC) (EF1070) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF555",
+                  "label": {
+                    "en": "ENA 8 (EF555) — experimental, untested",
+                    "nl": "ENA 8 (EF555) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1065",
                   "label": {
                     "en": "GIGA 10 (EA) (EF1065) — experimental, untested",
-                    "nl": "GIGA 10 (EA) (EF1065) — experimental, untested"
+                    "nl": "GIGA 10 (EA) (EF1065) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF657",
                   "label": {
                     "en": "GIGA 5 (EF657) — experimental, untested",
-                    "nl": "GIGA 5 (EF657) — experimental, untested"
+                    "nl": "GIGA 5 (EF657) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF566",
                   "label": {
                     "en": "GIGA 6 (EF566) — experimental, untested",
-                    "nl": "GIGA 6 (EF566) — experimental, untested"
+                    "nl": "GIGA 6 (EF566) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF566UL",
                   "label": {
                     "en": "GIGA 6 (EF566UL) — experimental, untested",
-                    "nl": "GIGA 6 (EF566UL) — experimental, untested"
+                    "nl": "GIGA 6 (EF566UL) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1097",
                   "label": {
                     "en": "GIGA W10 (SA) (EF1097) — experimental, untested",
-                    "nl": "GIGA W10 (SA) (EF1097) — experimental, untested"
+                    "nl": "GIGA W10 (SA) (EF1097) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF722UL_W",
                   "label": {
                     "en": "GIGA W3 Professional (EF722UL_W) — experimental, untested",
-                    "nl": "GIGA W3 Professional (EF722UL_W) — experimental, untested"
+                    "nl": "GIGA W3 Professional (EF722UL_W) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF722W",
                   "label": {
                     "en": "GIGA W3 Professional (EF722W) — experimental, untested",
-                    "nl": "GIGA W3 Professional (EF722W) — experimental, untested"
+                    "nl": "GIGA W3 Professional (EF722W) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF567",
                   "label": {
                     "en": "GIGA X3 (EF567) — experimental, untested",
-                    "nl": "GIGA X3 (EF567) — experimental, untested"
+                    "nl": "GIGA X3 (EF567) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF722",
                   "label": {
                     "en": "GIGA X3 Professional (EF722) — experimental, untested",
-                    "nl": "GIGA X3 Professional (EF722) — experimental, untested"
+                    "nl": "GIGA X3 Professional (EF722) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF722UL",
                   "label": {
                     "en": "GIGA X3 Professional (EF722UL) — experimental, untested",
-                    "nl": "GIGA X3 Professional (EF722UL) — experimental, untested"
+                    "nl": "GIGA X3 Professional (EF722UL) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF567_c",
                   "label": {
                     "en": "GIGA X3c (EF567_c) — experimental, untested",
-                    "nl": "GIGA X3c (EF567_c) — experimental, untested"
+                    "nl": "GIGA X3c (EF567_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF722_c",
                   "label": {
                     "en": "GIGA X3c Professional (EF722_c) — experimental, untested",
-                    "nl": "GIGA X3c Professional (EF722_c) — experimental, untested"
+                    "nl": "GIGA X3c Professional (EF722_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF659",
                   "label": {
                     "en": "GIGA X7 Professional (EF659) — experimental, untested",
-                    "nl": "GIGA X7 Professional (EF659) — experimental, untested"
+                    "nl": "GIGA X7 Professional (EF659) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF659_c",
                   "label": {
                     "en": "GIGA X7c Professional (EF659_c) — experimental, untested",
-                    "nl": "GIGA X7c Professional (EF659_c) — experimental, untested"
+                    "nl": "GIGA X7c Professional (EF659_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF565",
                   "label": {
                     "en": "GIGA X8 (EF565) — experimental, untested",
-                    "nl": "GIGA X8 (EF565) — experimental, untested"
+                    "nl": "GIGA X8 (EF565) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF565UL",
                   "label": {
                     "en": "GIGA X8 (NAA) (EF565UL) — experimental, untested",
-                    "nl": "GIGA X8 (NAA) (EF565UL) — experimental, untested"
+                    "nl": "GIGA X8 (NAA) (EF565UL) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF658S",
                   "label": {
                     "en": "GIGA X8 Professional (EF658S) — experimental, untested",
-                    "nl": "GIGA X8 Professional (EF658S) — experimental, untested"
+                    "nl": "GIGA X8 Professional (EF658S) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF565_c",
                   "label": {
                     "en": "GIGA X8c (EF565_c) — experimental, untested",
-                    "nl": "GIGA X8c (EF565_c) — experimental, untested"
+                    "nl": "GIGA X8c (EF565_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF658S_c",
                   "label": {
                     "en": "GIGA X8c Professional (EF658S_c) — experimental, untested",
-                    "nl": "GIGA X8c Professional (EF658S_c) — experimental, untested"
+                    "nl": "GIGA X8c Professional (EF658S_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF658",
                   "label": {
                     "en": "GIGA X9 Professional (EF658) — experimental, untested",
-                    "nl": "GIGA X9 Professional (EF658) — experimental, untested"
+                    "nl": "GIGA X9 Professional (EF658) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF658_c",
                   "label": {
                     "en": "GIGA X9c Professional (EF658_c) — experimental, untested",
-                    "nl": "GIGA X9c Professional (EF658_c) — experimental, untested"
+                    "nl": "GIGA X9c Professional (EF658_c) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF539",
                   "label": {
                     "en": "J10 (EA) (EF539) — experimental, untested",
-                    "nl": "J10 (EA) (EF539) — experimental, untested"
+                    "nl": "J10 (EA) (EF539) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1139",
                   "label": {
                     "en": "J10 twin (NAA) (EF1139) — experimental, untested",
-                    "nl": "J10 twin (NAA) (EF1139) — experimental, untested"
+                    "nl": "J10 twin (NAA) (EF1139) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF557",
                   "label": {
                     "en": "J6 (EF557) — experimental, untested",
-                    "nl": "J6 (EF557) — experimental, untested"
+                    "nl": "J6 (EF557) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1069",
                   "label": {
                     "en": "J8 (EA) (EF1069) — experimental, untested",
-                    "nl": "J8 (EA) (EF1069) — experimental, untested"
+                    "nl": "J8 (EA) (EF1069) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1060",
                   "label": {
                     "en": "J8 twin (NAA) (EF1060) — experimental, untested",
-                    "nl": "J8 twin (NAA) (EF1060) — experimental, untested"
+                    "nl": "J8 twin (NAA) (EF1060) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1123",
                   "label": {
                     "en": "S10 (EA) (EF1123) — experimental, untested",
-                    "nl": "S10 (EA) (EF1123) — experimental, untested"
-                  }
-                },
-                {
-                  "id": "EF536",
-                  "label": {
-                    "en": "S8 (EF536) — experimental, untested",
-                    "nl": "S8 (EF536) — experimental, untested"
+                    "nl": "S10 (EA) (EF1123) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1091",
                   "label": {
                     "en": "S8 (EB) (EF1091) — experimental, untested",
-                    "nl": "S8 (EB) (EF1091) — experimental, untested"
+                    "nl": "S8 (EB) (EF1091) — experimenteel, ongetest"
+                  }
+                },
+                {
+                  "id": "EF536",
+                  "label": {
+                    "en": "S8 (EF536) — experimental, untested",
+                    "nl": "S8 (EF536) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1151",
                   "label": {
                     "en": "S8 (NAB) (EF1151) — experimental, untested",
-                    "nl": "S8 (NAB) (EF1151) — experimental, untested"
+                    "nl": "S8 (NAB) (EF1151) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1115",
                   "label": {
                     "en": "W4 (SA) (EF1115) — experimental, untested",
-                    "nl": "W4 (SA) (EF1115) — experimental, untested"
+                    "nl": "W4 (SA) (EF1115) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1096",
                   "label": {
                     "en": "W8 (EA) (EF1096) — experimental, untested",
-                    "nl": "W8 (EA) (EF1096) — experimental, untested"
+                    "nl": "W8 (EA) (EF1096) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF534",
                   "label": {
                     "en": "WE6 (EF534) — experimental, untested",
-                    "nl": "WE6 (EF534) — experimental, untested"
+                    "nl": "WE6 (EF534) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF535",
                   "label": {
                     "en": "WE8 (EF535) — experimental, untested",
-                    "nl": "WE8 (EF535) — experimental, untested"
+                    "nl": "WE8 (EF535) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF535V2",
                   "label": {
                     "en": "WE8 (EF535V2) — experimental, untested",
-                    "nl": "WE8 (EF535V2) — experimental, untested"
+                    "nl": "WE8 (EF535V2) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF561",
                   "label": {
                     "en": "X10 (EF561) — experimental, untested",
-                    "nl": "X10 (EF561) — experimental, untested"
+                    "nl": "X10 (EF561) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1100",
                   "label": {
                     "en": "X10 (SA) (EF1100) — experimental, untested",
-                    "nl": "X10 (SA) (EF1100) — experimental, untested"
+                    "nl": "X10 (SA) (EF1100) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1127",
                   "label": {
                     "en": "X10c (EA) (EF1127) — experimental, untested",
-                    "nl": "X10c (EA) (EF1127) — experimental, untested"
+                    "nl": "X10c (EA) (EF1127) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1105",
                   "label": {
                     "en": "X4 (SA) (EF1105) — experimental, untested",
-                    "nl": "X4 (SA) (EF1105) — experimental, untested"
+                    "nl": "X4 (SA) (EF1105) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1128",
                   "label": {
                     "en": "X4c (EA) (EF1128) — experimental, untested",
-                    "nl": "X4c (EA) (EF1128) — experimental, untested"
+                    "nl": "X4c (EA) (EF1128) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF562",
                   "label": {
                     "en": "X6 (EF562) — experimental, untested",
-                    "nl": "X6 (EF562) — experimental, untested"
+                    "nl": "X6 (EF562) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF560",
                   "label": {
                     "en": "X8 (EF560) — experimental, untested",
-                    "nl": "X8 (EF560) — experimental, untested"
+                    "nl": "X8 (EF560) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1106",
                   "label": {
                     "en": "Z10 (EB) (EF1106) — experimental, untested",
-                    "nl": "Z10 (EB) (EF1106) — experimental, untested"
+                    "nl": "Z10 (EB) (EF1106) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF1208",
                   "label": {
                     "en": "Z10 (EC) (EF1208) — experimental, untested",
-                    "nl": "Z10 (EC) (EF1208) — experimental, untested"
+                    "nl": "Z10 (EC) (EF1208) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF545",
                   "label": {
                     "en": "Z10 (NAA) (EF545) — experimental, untested",
-                    "nl": "Z10 (NAA) (EF545) — experimental, untested"
+                    "nl": "Z10 (NAA) (EF545) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF540",
                   "label": {
                     "en": "Z6 (EF540) — experimental, untested",
-                    "nl": "Z6 (EF540) — experimental, untested"
+                    "nl": "Z6 (EF540) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF542",
                   "label": {
                     "en": "Z6 (EF542) — experimental, untested",
-                    "nl": "Z6 (EF542) — experimental, untested"
+                    "nl": "Z6 (EF542) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF541",
                   "label": {
                     "en": "Z8 (EF541) — experimental, untested",
-                    "nl": "Z8 (EF541) — experimental, untested"
+                    "nl": "Z8 (EF541) — experimenteel, ongetest"
                   }
                 },
                 {
                   "id": "EF541UL",
                   "label": {
                     "en": "Z8 (EF541UL) — experimental, untested",
-                    "nl": "Z8 (EF541UL) — experimental, untested"
+                    "nl": "Z8 (EF541UL) — experimenteel, ongetest"
                   }
                 }
               ]

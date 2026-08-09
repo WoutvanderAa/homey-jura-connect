@@ -10,5 +10,9 @@
   "0.2.1": {
     "en": "Mark unverified profiles as experimental in pairing/settings; add GitHub issue-reporting links; add author email; declare local-only platform.",
     "nl": "Ongeteste profielen gemarkeerd als experimenteel bij pairing/instellingen; GitHub-issues-links toegevoegd; auteur-e-mail toegevoegd; expliciet lokaal-only platform."
+  },
+  "0.2.2": {
+    "en": "Fixed the Dutch pairing-settings dropdown showing the English 'experimental, untested' label instead of a translated one.",
+    "nl": "Nederlandse instellingen-dropdown toonde per ongeluk het Engelse 'experimental, untested'-label i.p.v. een vertaling; nu gefixt."
   }
 }
