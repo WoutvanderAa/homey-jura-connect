@@ -34,5 +34,9 @@
   "0.2.7": {
     "en": "Split alarm_tray into alarm_tray (full, needs emptying) and alarm_tray_missing (not inserted at all) -- two genuinely different physical states that were incorrectly combined.",
     "nl": "alarm_tray gesplitst in alarm_tray (vol, moet geleegd) en alarm_tray_missing (helemaal niet geplaatst) -- twee echt verschillende situaties die ten onrechte samengevoegd waren."
+  },
+  "0.2.8": {
+    "en": "Tightened status polling from 30s to 10s so alarms and online/offline status feel responsive instead of lagging behind.",
+    "nl": "Status-polling verkort van 30s naar 10s zodat alarmen en online/offline-status sneller reageren i.p.v. achter te lopen."
   }
 }

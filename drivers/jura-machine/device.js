@@ -4,12 +4,15 @@ const { Device } = require('homey');
 const models = require('../../lib/models');
 const { JuraClient } = require('../../lib/juraClient');
 
-// How often to poll @HU? for a status frame while idle.
-const POLL_INTERVAL_MS = 30000;
+// How often to poll @HU? for a status frame while idle. Drives alarms,
+// onoff and available/unavailable -- kept short so those feel
+// responsive rather than lagging up to a full interval behind reality.
+const POLL_INTERVAL_MS = 10000;
 
 // Maintenance percent (@TG:C0) doesn't change fast enough to need every
-// 30s cycle -- read it once every 10th poll (~5 min) instead.
-const MAINTENANCE_POLL_EVERY = 10;
+// cycle -- read it once every 30th poll (~5 min at the 10s interval
+// above) instead.
+const MAINTENANCE_POLL_EVERY = 30;
 
 // The WiFi module goes fully offline when the machine is powered off or
 // hits its auto-off timer -- surface that plainly instead of a raw
