@@ -17,6 +17,18 @@ asking for this since 2020 (see e.g.
 [this thread](https://community.homey.app/t/j-o-e-app-van-jura-koffieapparaat/33873)),
 without a working app ever showing up.
 
+## Try it
+
+Currently in Homey's Test/certification pipeline — install it via the
+Test link, no special permission needed:
+**https://homey.app/en-us/app/nl.brokebyte.juraconnect/test/**
+
+Got a Jura with WiFi Connect that's a different model than the E8?
+Pair it and let us know how it went via
+[GitHub issues](https://github.com/WoutvanderAa/homey-jura-connect/issues)
+— that's how untested profiles get flipped to verified for the next
+person.
+
 ## Attribution
 
 JavaScript port of the reverse-engineering work in the Python package
