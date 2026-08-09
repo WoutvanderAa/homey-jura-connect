@@ -1,0 +1,101 @@
+name: Model verification report
+description: You paired a Jura model other than the E8 — let us know how it went so it can be flipped to "verified".
+title: "[Model] "
+labels:
+  - model-verification
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Every bundled model except the E8 is currently labeled
+        "experimental, untested" — this report is exactly how that gets fixed for
+        the next person with your machine.
+
+        Not sure what some of this means? Fill in what you can, the rest is optional.
+
+  - type: input
+    id: model
+    attributes:
+      label: Machine model
+      description: The name printed on the machine, or shown during pairing (e.g. "Jura E8", "Jura Z10")
+      placeholder: Jura ...
+    validations:
+      required: true
+
+  - type: input
+    id: article-number
+    attributes:
+      label: Article number
+      description: Usually on a label on the machine or in its manual, e.g. "15336"
+      placeholder: "15336"
+
+  - type: input
+    id: hwid
+    attributes:
+      label: hwId / EF code shown at pairing
+      description: Shown during pairing if auto-detection didn't recognize the article number, or in device settings after pairing (e.g. "EF538M V01.05")
+      placeholder: EF...
+
+  - type: dropdown
+    id: pairing
+    attributes:
+      label: Did pairing complete?
+      options:
+        - "Yes — auto-detected the right model"
+        - "Yes — but I had to pick the model manually"
+        - "No — pairing failed"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: status
+    attributes:
+      label: Does live status reporting work?
+      description: Ready/heating/needs water/needs beans/tray full etc. showing up correctly on the device tile
+      options:
+        - "Yes, looks correct"
+        - "Partially — some states are wrong or missing"
+        - "No"
+        - "Didn't test"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: brew
+    attributes:
+      label: Does brewing a product work?
+      description: Using the "brew_product" flow action
+      options:
+        - "Yes"
+        - "Partially — some products fail or brew the wrong thing"
+        - "No"
+        - "Didn't test"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: alarms
+    attributes:
+      label: Which alarms did you confirm fire correctly?
+      description: Trigger these on the real machine (e.g. remove the water tank) and check the alarm shows up in Homey
+      options:
+        - label: Water (alarm_water)
+        - label: Beans (alarm_beans)
+        - label: Tray full (alarm_tray)
+        - label: Tray missing (alarm_tray_missing)
+        - label: Maintenance % (cleaning/filter/descale)
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything that looked wrong?
+      description: Wrong alert names, wrong maintenance direction, brewing the wrong product, missing capabilities, etc. — as much detail as you can give.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: |
+        From Homey's Developer Tools → My Apps → Jura Connect → App Performance,
+        or a manually-submitted diagnostic report ID.
+      render: text

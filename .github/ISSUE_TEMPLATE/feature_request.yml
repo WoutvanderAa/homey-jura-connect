@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something this app doesn't do yet.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The underlying need, not necessarily the solution — helps figure out the best way to support it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to see?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've already tried or considered?

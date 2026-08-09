@@ -1,0 +1,53 @@
+name: Bug report
+description: Something isn't working the way it should.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Machine model
+      description: e.g. "Jura E8", including article number/hwId if you know it
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Homey → Apps → Jura Connect, or the Build number shown in Developer Tools
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: |
+        From Homey's Developer Tools → My Apps → Jura Connect → App Performance,
+        or a manually-submitted diagnostic report ID.
+      render: text
