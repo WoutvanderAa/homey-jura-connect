@@ -168,15 +168,21 @@ Also, not bugs but network reality:
 - **Live-verify more of the 72 bundled profiles** as that hardware
   becomes available.
 - **Homey App Store publishing** is a separate track: Athom's own
-  review, and an `author.email` in `app.json` (currently just a name).
-  Icons/images were redone against Athom's actual published guidelines
+  review. `author.email`, `support`/`bugs`/`source` links and a
+  plain-text `README.txt`/`README.nl.txt` (required for the store
+  listing, separate from this file) are already in place.
+  Icons/images were redone against Athom's published guidelines
   (transparent app icon rendered as a mask, white-background driver
-  image with a picture of the device, a simple flat-color app banner —
-  see `assets/*.svg` and `drivers/jura-machine/assets/machine.svg`).
-  Athom's guidelines actually recommend "lifestyle photography" for
-  app-store banners, which is beyond what a hand-drawn vector
-  illustration can deliver — worth a real design pass before
-  submitting.
+  image, a simple flat-color app banner — see `assets/*.svg` and
+  `drivers/jura-machine/assets/machine.svg`). The driver image
+  deliberately reuses the app's cup glyph rather than a from-scratch
+  machine illustration (an earlier attempt read as an unrecognisable
+  blob at small sizes) — this technically goes against Athom's "don't
+  reuse your app icon for drivers" guideline, a conscious trade-off for
+  a case where the alternative looked worse. Athom's guidelines also
+  recommend "lifestyle photography" for app-store banners, which is
+  beyond what a hand-drawn vector illustration can deliver — worth a
+  real design pass before submitting.
 - Raw maintenance counters (`@TG:43`) and per-product brew counters
   (`@TR:32`) exist in the protocol (see `jura_connect`'s
   `read_maintenance_counter`/`read_product_counters`) but aren't
@@ -199,7 +205,7 @@ drivers/jura-machine/driver.js       — custom pair flow (discovery + model det
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/alarm_generic.svg — custom icon for the alarm_generic capability, replacing Homey's default bell
-drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png (white bg + device picture, per Homey's driver-image guideline)
+drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png (white bg + the app's cup glyph)
 assets/icon.svg                      — source SVG for the app icon (transparent, no gradient/background — Homey renders it as a mask)
 assets/banner.svg                    — source SVG for the app's small/large.png store banner images
 ```

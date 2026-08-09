@@ -1,35 +1,19 @@
 <!-- Source for drivers/jura-machine/assets/images/{large,small}.png.
-     Per Homey's app-store guidelines, driver images need a white
-     background and a recognisable picture of the device (not the app
-     icon): this is a stylised bean-to-cup machine silhouette, not
-     the coffee-cup glyph used for assets/icon.svg.
+     Same cup+steam glyph as assets/icon.svg, on the white background
+     Homey's driver-image guideline requires. Replaces an earlier
+     bean-to-cup machine illustration that read as an unrecognisable
+     blob at small sizes; the user preferred consistency with the app
+     icon over a literal (but muddy) device illustration.
      Regenerate with: sharp(this).resize(500,500|75,75).png() -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
   <rect x="0" y="0" width="250" height="250" fill="#FFFFFF"/>
-  <g transform="translate(-35.64,-50.36) scale(1.28)">
-    <!-- bean hopper -->
-    <rect x="145" y="48" width="34" height="30" rx="8" fill="#4B3621"/>
-
-    <!-- body -->
-    <rect x="72" y="60" width="106" height="98" rx="14" fill="#4B3621"/>
-
-    <!-- display -->
-    <rect x="86" y="80" width="46" height="26" rx="5" fill="#FFFFFF"/>
-
-    <!-- dispenser arm -->
-    <rect x="107" y="150" width="10" height="34" rx="3" fill="#4B3621"/>
-
-    <!-- steam -->
-    <g stroke="#4B3621" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.75">
-      <path d="M128 178 q5 -6 0 -12 q-5 -6 0 -12"/>
-      <path d="M140 178 q5 -6 0 -12 q-5 -6 0 -12"/>
+  <g transform="translate(-99.1,-91) scale(1.8)">
+    <rect x="77" y="108" width="76" height="66" rx="10" fill="#4B3621"/>
+    <path d="M153 122 a19 19 0 0 1 0 40" stroke="#4B3621" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <g stroke="#4B3621" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M97 98 q8 -8 0 -16 q-8 -8 0 -16"/>
+      <path d="M115 98 q8 -8 0 -16 q-8 -8 0 -16"/>
+      <path d="M133 98 q8 -8 0 -16 q-8 -8 0 -16"/>
     </g>
-
-    <!-- cup -->
-    <rect x="118" y="182" width="36" height="28" rx="6" fill="#4B3621"/>
-    <path d="M154 189 a10 10 0 0 1 0 18" stroke="#4B3621" stroke-width="5" fill="none" stroke-linecap="round"/>
-
-    <!-- drip tray -->
-    <rect x="90" y="214" width="88" height="12" rx="5" fill="#4B3621"/>
   </g>
 </svg>
