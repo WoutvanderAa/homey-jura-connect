@@ -49,6 +49,13 @@ bundled), the pair flow shows a manual picker — each entry's label
 includes its EF code, which usually matches what the machine itself
 reports (hwId / data plate), so you can match it up directly.
 
+Every model label except `EF538` is suffixed with "— experimental,
+untested" (see `lib/models.js`'s `verified` flag) — that's not a
+disclaimer for show, it genuinely means nobody has run that profile
+against real hardware yet. Found a bug on one of those, or got one
+working? [Open an issue](https://github.com/WoutvanderAa/homey-jura-connect/issues)
+so it can be flipped to verified for the next person.
+
 Found a model missing, or think an EF code needs a newer variant? See
 **`lib/profiles/README.md`** for the extraction steps — the protocol
 foundation (`crypto.js`, `protocol.js`, `discovery.js`,
