@@ -18,5 +18,9 @@
   "0.2.3": {
     "en": "Added dedicated water and beans alarms (alarm_water, jura_alarm_beans), picked by surveying alert names across all 72 bundled profiles for universal coverage.",
     "nl": "Losse water- en bonen-alarmen toegevoegd (alarm_water, jura_alarm_beans), gekozen op basis van een analyse van alert-namen in alle 72 gebundelde profielen voor universele dekking."
+  },
+  "0.2.4": {
+    "en": "Renamed jura_alarm_beans to alarm_beans so Homey treats it as a proper alarm (grouping, warning icon, and automatic Flow trigger/condition cards).",
+    "nl": "jura_alarm_beans hernoemd naar alarm_beans zodat Homey 'm als een echt alarm behandelt (groepering, waarschuwingsicoon, en automatische flow-triggers/condities)."
   }
 }

@@ -108,7 +108,7 @@ Direction confirmed via [`jura-connect-hass`](https://github.com/makefu/jura-con
 resetting to 0% right after that maintenance action runs. Their own
 example automation fires a notification once cleaning passes 95%.
 
-**Water and beans alarms** (`alarm_water`, `jura_alarm_beans`) surface
+**Water and beans alarms** (`alarm_water`, `alarm_beans`) surface
 the two most actionable error conditions as their own capabilities
 instead of only folding into the generic `alarm_generic`. These were
 deliberately picked by surveying every bundled profile's alert list
@@ -116,8 +116,12 @@ deliberately picked by surveying every bundled profile's alert list
 only two profile-error alert names present, by name, in **all 72**
 bundled profiles, so they work for any paired model — not just the
 E8. `alarm_water` reuses Homey's built-in water-alarm capability
-(icon included); `jura_alarm_beans` is a small custom capability with
-its own coffee-bean icon. Other alert names are near-universal too
+(icon included); `alarm_beans` is a small custom capability with its
+own coffee-bean icon. Both use the `alarm_` prefix deliberately —
+that's a reserved Homey naming convention that gets automatic device-
+tile grouping/warning icon *and* automatic Flow trigger/condition
+cards for free, which a differently-prefixed custom id would not get.
+Other alert names are near-universal too
 (`insert_tray`/`empty_tray`/`empty_grounds`/`insert_coffee_bin`/
 `fill_system` are all 100%, `outlet_missing`/`rear_cover_missing` are
 96-97%) and would be reasonable next additions on the same pattern.

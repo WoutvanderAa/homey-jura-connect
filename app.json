@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -99,7 +99,7 @@
       "uiComponent": "sensor",
       "insights": true
     },
-    "jura_alarm_beans": {
+    "alarm_beans": {
       "type": "boolean",
       "title": {
         "en": "Beans",
@@ -111,7 +111,6 @@
       },
       "getable": true,
       "setable": false,
-      "uiComponent": "sensor",
       "insights": true
     }
   },
@@ -127,7 +126,7 @@
         "onoff",
         "alarm_generic",
         "alarm_water",
-        "jura_alarm_beans",
+        "alarm_beans",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
         "jura_maintenance_descale"

@@ -88,7 +88,7 @@ construction. Still worth checking on real hardware:
 
 Alert bit *positions* differ between machines, but alert *names* turn
 out to be far more consistent -- this is what `alarm_water` and
-`jura_alarm_beans` in `device.js` rely on. Coverage across every
+`alarm_beans` in `device.js` rely on. Coverage across every
 bundled `lib/profiles/*.js` file's `alerts` array:
 
 | Alert name | Coverage | Notes |

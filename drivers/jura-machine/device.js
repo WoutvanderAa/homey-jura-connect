@@ -36,16 +36,23 @@ class JuraMachineDevice extends Device {
       icon: '/drivers/jura-machine/assets/alarm_generic.svg',
     }).catch(this.error);
 
+    // Renamed from jura_alarm_beans -- `alarm_` is a reserved Homey
+    // prefix that gets automatic grouping, a warning icon, and (most
+    // importantly) automatic Flow trigger/condition cards, none of
+    // which a jura_-prefixed id would get. Drop the stale one from
+    // devices paired before this rename.
+    if (this.hasCapability('jura_alarm_beans')) await this.removeCapability('jura_alarm_beans').catch(this.error);
+
     for (const cap of [
       'alarm_water',
-      'jura_alarm_beans',
+      'alarm_beans',
       'jura_maintenance_cleaning',
       'jura_maintenance_filter',
       'jura_maintenance_descale',
     ]) {
       if (!this.hasCapability(cap)) await this.addCapability(cap).catch(this.error);
     }
-    this.setCapabilityOptions('jura_alarm_beans', {
+    this.setCapabilityOptions('alarm_beans', {
       icon: '/drivers/jura-machine/assets/alarm_beans.svg',
     }).catch(this.error);
 
@@ -156,7 +163,7 @@ class JuraMachineDevice extends Device {
       // profiles -- see lib/profiles/README.md's alert survey -- so these
       // are safe to compute for any paired model, not just the E8.
       this.setCapabilityValue('alarm_water', status.activeAlerts.includes('fill_water')).catch(this.error);
-      this.setCapabilityValue('jura_alarm_beans', status.activeAlerts.includes('no_beans')).catch(this.error);
+      this.setCapabilityValue('alarm_beans', status.activeAlerts.includes('no_beans')).catch(this.error);
 
       if (hasError) {
         this.setWarning(status.errors.join(', ')).catch(this.error);

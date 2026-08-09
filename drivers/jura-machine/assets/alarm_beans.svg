@@ -1,4 +1,4 @@
-<!-- Custom icon for the jura_alarm_beans capability: a single coffee
+<!-- Custom icon for the alarm_beans capability: a single coffee
      bean silhouette, same shape as assets/banner.svg's beans. No
      crease detail: Homey renders capability icons as a monochrome
      mask, so a stroke drawn over a fill (expecting a color contrast)
