@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -112,6 +112,20 @@
       "getable": true,
       "setable": false,
       "insights": true
+    },
+    "alarm_tray": {
+      "type": "boolean",
+      "title": {
+        "en": "Tray",
+        "nl": "Lekbak"
+      },
+      "desc": {
+        "en": "On when the drip tray or grounds container needs inserting or emptying.",
+        "nl": "Actief wanneer de lekbak of het kaffeesatzbakje geplaatst of geleegd moet worden."
+      },
+      "getable": true,
+      "setable": false,
+      "insights": true
     }
   },
   "drivers": [
@@ -127,6 +141,7 @@
         "alarm_generic",
         "alarm_water",
         "alarm_beans",
+        "alarm_tray",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
         "jura_maintenance_descale"

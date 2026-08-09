@@ -46,6 +46,7 @@ class JuraMachineDevice extends Device {
     for (const cap of [
       'alarm_water',
       'alarm_beans',
+      'alarm_tray',
       'jura_maintenance_cleaning',
       'jura_maintenance_filter',
       'jura_maintenance_descale',
@@ -54,6 +55,9 @@ class JuraMachineDevice extends Device {
     }
     this.setCapabilityOptions('alarm_beans', {
       icon: '/drivers/jura-machine/assets/alarm_beans.svg',
+    }).catch(this.error);
+    this.setCapabilityOptions('alarm_tray', {
+      icon: '/drivers/jura-machine/assets/alarm_tray.svg',
     }).catch(this.error);
 
     this._client = null;
@@ -159,11 +163,16 @@ class JuraMachineDevice extends Device {
       const hasError = status.errors.length > 0;
       this.setCapabilityValue('alarm_generic', hasError).catch(this.error);
 
-      // fill_water and no_beans are present (by name) in all 72 bundled
-      // profiles -- see lib/profiles/README.md's alert survey -- so these
-      // are safe to compute for any paired model, not just the E8.
+      // fill_water, no_beans, insert_tray, empty_tray and empty_grounds
+      // are all present (by name) in all 72 bundled profiles -- see
+      // lib/profiles/README.md's alert survey -- so these are safe to
+      // compute for any paired model, not just the E8.
       this.setCapabilityValue('alarm_water', status.activeAlerts.includes('fill_water')).catch(this.error);
       this.setCapabilityValue('alarm_beans', status.activeAlerts.includes('no_beans')).catch(this.error);
+      this.setCapabilityValue(
+        'alarm_tray',
+        ['insert_tray', 'empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name))
+      ).catch(this.error);
 
       if (hasError) {
         this.setWarning(status.errors.join(', ')).catch(this.error);

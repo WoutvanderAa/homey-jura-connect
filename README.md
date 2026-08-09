@@ -108,23 +108,29 @@ Direction confirmed via [`jura-connect-hass`](https://github.com/makefu/jura-con
 resetting to 0% right after that maintenance action runs. Their own
 example automation fires a notification once cleaning passes 95%.
 
-**Water and beans alarms** (`alarm_water`, `alarm_beans`) surface
-the two most actionable error conditions as their own capabilities
-instead of only folding into the generic `alarm_generic`. These were
-deliberately picked by surveying every bundled profile's alert list
-(see `lib/profiles/README.md`): `fill_water` and `no_beans` are the
-only two profile-error alert names present, by name, in **all 72**
-bundled profiles, so they work for any paired model — not just the
-E8. `alarm_water` reuses Homey's built-in water-alarm capability
-(icon included); `alarm_beans` is a small custom capability with its
-own coffee-bean icon. Both use the `alarm_` prefix deliberately —
-that's a reserved Homey naming convention that gets automatic device-
-tile grouping/warning icon *and* automatic Flow trigger/condition
-cards for free, which a differently-prefixed custom id would not get.
-Other alert names are near-universal too
-(`insert_tray`/`empty_tray`/`empty_grounds`/`insert_coffee_bin`/
-`fill_system` are all 100%, `outlet_missing`/`rear_cover_missing` are
-96-97%) and would be reasonable next additions on the same pattern.
+**Water, beans and tray alarms** (`alarm_water`, `alarm_beans`,
+`alarm_tray`) surface the most actionable error conditions as their
+own capabilities instead of only folding into the generic
+`alarm_generic`. These were deliberately picked by surveying every
+bundled profile's alert list (see `lib/profiles/README.md`):
+`fill_water`, `no_beans`, `insert_tray`, `empty_tray` and
+`empty_grounds` are all present, by name, in **all 72** bundled
+profiles, so they work for any paired model — not just the E8.
+`alarm_tray` covers the tray-related trio (`insert_tray`/`empty_tray`/
+`empty_grounds`) as one capability rather than three near-duplicates,
+since they're all "the drip tray / grounds container needs attention"
+in practice. `alarm_water` reuses Homey's built-in water-alarm
+capability (icon included); `alarm_beans` and `alarm_tray` are small
+custom capabilities with their own icons. All three use the `alarm_`
+prefix deliberately — that's a reserved Homey naming convention that
+gets automatic device-tile grouping/warning icon *and* automatic Flow
+trigger/condition cards for free, which a differently-prefixed custom
+id would not get (this is also why the beans alarm was renamed from
+an earlier `jura_alarm_beans`). `insert_coffee_bin` and `fill_system`
+are also 100% but read as mechanical-fault conditions rather than
+something a flow notification would act on, so they're left folded
+into `alarm_generic`; `outlet_missing`/`rear_cover_missing` (96-97%)
+would be reasonable next additions on the same pattern.
 
 ### Bugs found during live testing (fixed)
 

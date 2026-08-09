@@ -22,5 +22,9 @@
   "0.2.4": {
     "en": "Renamed jura_alarm_beans to alarm_beans so Homey treats it as a proper alarm (grouping, warning icon, and automatic Flow trigger/condition cards).",
     "nl": "jura_alarm_beans hernoemd naar alarm_beans zodat Homey 'm als een echt alarm behandelt (groepering, waarschuwingsicoon, en automatische flow-triggers/condities)."
+  },
+  "0.2.5": {
+    "en": "Added a tray alarm (alarm_tray) covering insert_tray/empty_tray/empty_grounds, all 100% coverage across the 72 bundled profiles.",
+    "nl": "Lekbak-alarm toegevoegd (alarm_tray) voor insert_tray/empty_tray/empty_grounds, alle drie 100% aanwezig in de 72 gebundelde profielen."
   }
 }
