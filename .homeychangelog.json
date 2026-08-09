@@ -26,5 +26,9 @@
   "0.2.5": {
     "en": "Added a tray alarm (alarm_tray) covering insert_tray/empty_tray/empty_grounds, all 100% coverage across the 72 bundled profiles.",
     "nl": "Lekbak-alarm toegevoegd (alarm_tray) voor insert_tray/empty_tray/empty_grounds, alle drie 100% aanwezig in de 72 gebundelde profielen."
+  },
+  "0.2.6": {
+    "en": "Added explicit Flow trigger/condition cards for alarm_beans and alarm_tray (custom capabilities don't get these automatically just from the alarm_ prefix, unlike built-in ones like alarm_water).",
+    "nl": "Expliciete flow-trigger/conditiekaarten toegevoegd voor alarm_beans en alarm_tray (custom capabilities krijgen die niet automatisch alleen op basis van de alarm_-prefix, in tegenstelling tot ingebouwde zoals alarm_water)."
   }
 }

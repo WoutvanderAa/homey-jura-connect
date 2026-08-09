@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -728,6 +728,94 @@
               "en": "Choose a product",
               "nl": "Kies een product"
             }
+          }
+        ]
+      }
+    ],
+    "triggers": [
+      {
+        "id": "alarm_beans_true",
+        "title": {
+          "en": "Beans alarm turned on",
+          "nl": "Bonen-alarm ging aan"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_beans_false",
+        "title": {
+          "en": "Beans alarm turned off",
+          "nl": "Bonen-alarm ging uit"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_true",
+        "title": {
+          "en": "Tray alarm turned on",
+          "nl": "Lekbak-alarm ging aan"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_false",
+        "title": {
+          "en": "Tray alarm turned off",
+          "nl": "Lekbak-alarm ging uit"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "alarm_beans_on",
+        "title": {
+          "en": "Beans alarm !{{is|isn't}} on",
+          "nl": "Bonen-alarm !{{staat|staat niet}} aan"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_on",
+        "title": {
+          "en": "Tray alarm !{{is|isn't}} on",
+          "nl": "Lekbak-alarm !{{staat|staat niet}} aan"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
           }
         ]
       }
