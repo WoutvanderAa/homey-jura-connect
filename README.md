@@ -2,12 +2,9 @@
 
 A Homey app (SDK v3) for Jura coffee machines fitted with the
 **WiFi Connect** module — local, no cloud, no Jura account. Talks
-directly to the WiFi dongle on TCP port 51515. Ships with profiles for
-all 72 Jura models in the source library's catalogue; the E8 (what we
-have at home) is the one that's actually been run against real
-hardware. The protocol layer and the Homey driver have no
-model-specific code at all — only the per-model product catalogue is
-data, see "Supported models" below.
+directly to the WiFi dongle on TCP port 51515. The protocol layer and
+Homey driver have no model-specific code; only the per-model product
+catalogue is data (see "Supported models").
 
 > This app is not made by, affiliated with, or endorsed by Jura
 > Elektroapparate AG. "Jura" is a trademark of Jura Elektroapparate AG;
@@ -20,225 +17,162 @@ without a working app ever showing up.
 
 ## Attribution
 
-This is a JavaScript port of the reverse-engineering work in the
-Python package **[`jura_connect`](https://pypi.org/project/jura-connect/)**
-by **makefu** (`jura-connect-hass` on GitHub), itself derived from the
-J.O.E. Android app. Without that work this wouldn't exist — all credit
-for figuring out the handshake protocol, the cipher, and the machine
-XML catalogue goes there. This repo is a port to Node.js/Homey, not
-original reverse-engineering. Both projects are MIT-licensed (see
-`LICENSE`).
+JavaScript port of the reverse-engineering work in the Python package
+**[`jura_connect`](https://pypi.org/project/jura-connect/)** by
+**makefu** (`jura-connect-hass` on GitHub), itself derived from the
+J.O.E. Android app. All credit for the handshake protocol, the
+cipher, and the machine XML catalogue goes there — this repo is a
+port, not original reverse-engineering. Both projects are MIT-licensed
+(see `LICENSE`).
 
 ## Supported models
 
-**All 72 models** from the `jura_connect` library's `JOE_MACHINES.TXT`
-catalogue are bundled (`lib/profiles/*.js`, one file per EF code,
-mechanically extracted the same way as documented in
-`lib/profiles/README.md`). Only one has actually been run against
-physical hardware:
-
-| Model | EF code | Status |
-|---|---|---|
-| Jura E8 (EB) | `EF538` | ✅ **live-verified** (article 15336, hwId `EF538M V01.05`) — pairing, status, brewing, maintenance percent |
-| Everything else (71 profiles) | see `lib/models.js` | data bundled from the source catalogue, product/recipe encoding is a proven protocol-level constant across models, but not personally run against that specific hardware |
-
-During pairing the model is auto-detected from the article number in
-the discovery reply. If the app doesn't recognise the article number
-(shouldn't happen often now that all known article numbers are
-bundled), the pair flow shows a manual picker — each entry's label
-includes its EF code, which usually matches what the machine itself
-reports (hwId / data plate), so you can match it up directly.
-
-Every model label except `EF538` is suffixed with "— experimental,
-untested" (see `lib/models.js`'s `verified` flag) — that's not a
-disclaimer for show, it genuinely means nobody has run that profile
-against real hardware yet. Found a bug on one of those, or got one
+**All 72 models** from `jura_connect`'s `JOE_MACHINES.TXT` catalogue
+are bundled (`lib/profiles/*.js`, one file per EF code). Only the
+**Jura E8 (EF538)** has been run against physical hardware; every
+other model's label is suffixed "— experimental, untested" in the
+pairing/settings UI (`lib/models.js`'s `verified` flag) — that's a
+literal statement, not a disclaimer for show. Found a bug, or got one
 working? [Open an issue](https://github.com/WoutvanderAa/homey-jura-connect/issues)
-so it can be flipped to verified for the next person.
+so it can be flipped to verified.
 
-Found a model missing, or think an EF code needs a newer variant? See
-**`lib/profiles/README.md`** for the extraction steps — the protocol
-foundation (`crypto.js`, `protocol.js`, `discovery.js`,
-`juraClient.js`) never needs to change for that, only `lib/models.js`
-and a new `lib/profiles/<EF_CODE>.js` file.
+During pairing the model is auto-detected from the discovery reply's
+article number. If it isn't recognised, the manual picker's labels
+include the EF code, which usually matches the machine's own hwId —
+useful for self-identifying. To add a model that's somehow still
+missing, see `lib/profiles/README.md`; the protocol foundation
+(`crypto.js`, `protocol.js`, `discovery.js`, `juraClient.js`) never
+needs to change, only `lib/models.js` and a new profile file.
 
-### A mislabeling this caught
+## Capabilities
 
-The E8 we tested against reported article 15336 / hwId `EF538M
-V01.05` at pairing time. Before all 72 models were bundled, the
-pairing dropdown only offered `EF533`/`EF533V2`, so `EF533V2` was
-picked manually as the closest guess — and brewing worked fine with
-it. Once the full catalogue went in, it turned out article 15336
-actually maps to **`EF538`**, a distinct profile — the hwId string
-said so all along. `EF533V2` happened to be close enough to brew
-correctly, but `EF538`'s product list is the accurate one. If you
-paired before this fix and your machine looks like an E8, check its
-device settings — the correct EF code is right there in the hwId the
-app already showed you during pairing.
+| Capability | Source | Notes |
+|---|---|---|
+| `onoff` | `@HU?` status | Read-only in practice: the protocol has no remote power-*on* command, only standby. Turning off sends `@AN:02`. |
+| `alarm_generic` | any active error bit | Catch-all "needs attention", custom cup icon instead of Homey's bell. |
+| `alarm_water` | `fill_water` | Homey's built-in water-alarm capability/icon. |
+| `alarm_beans` | `no_beans` | Custom capability + icon. |
+| `alarm_tray` | `insert_tray` / `empty_tray` / `empty_grounds` | One capability for the tray/grounds area rather than three near-duplicates. |
+| `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). |
+| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile. |
 
-## What's verified, what isn't
+The four alarm-triggering alert names (`fill_water`, `no_beans`,
+`insert_tray`, `empty_tray`, `empty_grounds`) were picked by surveying
+every bundled profile's alert list — they're the ones present, by
+name, in **all 72** profiles (see `lib/profiles/README.md`), so they
+work for any paired model. `insert_coffee_bin` and `fill_system` are
+also 100% but read as mechanical faults rather than something worth a
+flow notification, so they stay folded into `alarm_generic`.
+`outlet_missing`/`rear_cover_missing` (96-97%) would be reasonable
+next additions on the same pattern.
 
-Everything below was **verified while building**, not guessed — by
-installing the actual `jura_connect` Python package and testing the JS
-port byte-for-byte against the real implementation, and since v0.1.1
-also live against a physical machine:
+Every `alarm_*` capability here uses that exact prefix on purpose:
+Homey grants automatic device-tile grouping, a warning icon, *and*
+automatic Flow trigger/condition cards to anything prefixed `alarm_`
+— a differently-prefixed custom id gets none of that.
+
+Maintenance-percent direction is confirmed via
+[`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
+own docs ("percent-to-next-service" indicators), not guessed.
+
+## What's verified
+
+Verified by installing the real `jura_connect` Python package and
+testing the JS port byte-for-byte against it, then live against a
+physical E8:
 
 | Part | Status |
 |---|---|
-| `lib/crypto.js` (cipher) | ✅ 88 test vectors, byte-identical to Python, incl. all edge cases |
-| `lib/discovery.js` (UDP discovery) | ✅ Tested synthetically and live (finds real machines on the LAN) |
-| `lib/profile.js` (recipe encoder, model-agnostic) | ✅ Byte-exact against Python's encoder, for multiple models |
-| `lib/profiles/*.js` (72 profiles) | ✅ Product data comes verbatim from the J.O.E. app's own catalogue; only `EF538`'s data has been cross-checked against a real machine |
-| `lib/protocol.js` + `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server tested, and live: pairing, status polling, brewing and maintenance-percent (`@TG:C0`) all work against a real Jura E8 |
-| **Homey pair flow** (`driver.js`, `pair/*.html`) | ✅ **Live-verified** — see "Bugs found during live testing" below |
-| **Everything against the real machine** | ✅ **Live-verified** — E8 (article 15336, hwId `EF538M V01.05`), pairing + status + brewing (espresso) + maintenance percent |
+| `lib/crypto.js` | ✅ 88 test vectors, byte-identical to Python |
+| `lib/discovery.js` | ✅ Synthetic + live (finds real machines on the LAN) |
+| `lib/profile.js` (recipe encoder) | ✅ Byte-exact against Python, multiple models |
+| `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; only `EF538` cross-checked against real hardware |
+| `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8 |
+| Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Quirks found" below |
+| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms |
 
-Not yet live-verified: any of the other 71 bundled profiles. The
-model-not-recognised path (manual profile picker during pairing) has
-been live-confirmed to work.
+Not yet live-verified: any of the other 71 bundled profiles.
 
-**Maintenance percent** (`jura_maintenance_cleaning`/`_filter`/`_descale`
-capabilities, reading `@TG:C0`) is live-confirmed to return real
-numbers (cleaning 20%, descale 50%, filter reporting `0xFF` — this
-particular machine has no water filter cartridge fitted, which the app
-correctly treats as "not tracked" rather than showing a bogus 255%).
-Direction confirmed via [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)
-(the Home Assistant project this app is also attributed to): these are
-"percent-to-next-service" indicators — **higher means more due**,
-resetting to 0% right after that maintenance action runs. Their own
-example automation fires a notification once cleaning passes 95%.
+## Quirks found during live testing
 
-**Water, beans and tray alarms** (`alarm_water`, `alarm_beans`,
-`alarm_tray`) surface the most actionable error conditions as their
-own capabilities instead of only folding into the generic
-`alarm_generic`. These were deliberately picked by surveying every
-bundled profile's alert list (see `lib/profiles/README.md`):
-`fill_water`, `no_beans`, `insert_tray`, `empty_tray` and
-`empty_grounds` are all present, by name, in **all 72** bundled
-profiles, so they work for any paired model — not just the E8.
-`alarm_tray` covers the tray-related trio (`insert_tray`/`empty_tray`/
-`empty_grounds`) as one capability rather than three near-duplicates,
-since they're all "the drip tray / grounds container needs attention"
-in practice. `alarm_water` reuses Homey's built-in water-alarm
-capability (icon included); `alarm_beans` and `alarm_tray` are small
-custom capabilities with their own icons. All three use the `alarm_`
-prefix deliberately — that's a reserved Homey naming convention that
-gets automatic device-tile grouping/warning icon *and* automatic Flow
-trigger/condition cards for free, which a differently-prefixed custom
-id would not get (this is also why the beans alarm was renamed from
-an earlier `jura_alarm_beans`). `insert_coffee_bin` and `fill_system`
-are also 100% but read as mechanical-fault conditions rather than
-something a flow notification would act on, so they're left folded
-into `alarm_generic`; `outlet_missing`/`rear_cover_missing` (96-97%)
-would be reasonable next additions on the same pattern.
+Three Homey pair-flow bugs, only visible against a real Homey + machine:
 
-### Bugs found during live testing (fixed)
+- **Race condition**: `start.html` called `Homey.showView('connect')`
+  before the `select_machine` emit was acknowledged, sometimes loading
+  the next view with an empty selection. Fixed by navigating inside
+  the emit's `.then()`.
+- **Redundant system "Next" button**: `app.json`'s `start` pair view
+  had `navigation.next` set, which made Homey render its own button
+  that bypassed the custom row-click handler entirely. Removed.
+- **`Homey.setNavigationCloseable` doesn't exist** in this Homey
+  CLI/runtime (v4.4.1, software 13.4.0) — threw synchronously before
+  the click handler ever reached `Homey.emit()`. Wrapped in a `typeof`
+  check.
 
-There was no protocol-level guesswork left, but the Homey pair flow
-itself turned out to have three separate, mutually-masking bugs —
-only visible once you actually run it against a real Homey and
-machine:
+Network/hardware realities, not bugs:
 
-1. **Race condition in `start.html`**: `Homey.showView('connect')` was
-   called before the `select_machine` emit had been acknowledged, so
-   the next view sometimes loaded with an empty selection. Fix:
-   navigate only inside the emit's `.then()`.
-2. **Redundant system "Next" button**: `app.json`'s `start` pair view
-   had `"navigation": {"next": "connect"}` set, which makes Homey
-   render its own button that completely bypassed the custom
-   row-click handler (leaving the selection empty). Removed — this
-   pair flow handles navigation itself.
-3. **`Homey.setNavigationCloseable` doesn't exist** in this Homey
-   CLI/runtime version (v4.4.1, software 13.4.0) and threw
-   synchronously before the click handler ever reached
-   `Homey.emit()` — from the outside it looked like clicking did
-   nothing. Fix: wrapped in a `typeof` check.
-
-Also, not bugs but network reality:
-
-- **UDP broadcast discovery doesn't cross VLAN boundaries**, even with
-  a firewall allow rule (that's how L3 routing works, not a policy
-  thing). Added: a **manual IP entry** field in `start.html` as a
-  fallback for cross-VLAN setups.
-- The machine becomes **physically unreachable** after a short period
-  of inactivity (auto-off/sleep) — the WiFi module goes fully offline.
-  `device.js` then shows a readable "Machine appears to be off or
-  unreachable" instead of a raw socket error code. There's no protocol
-  command to remotely wake the machine from that state (see "Known
-  limitations").
+- **UDP broadcast discovery doesn't cross VLANs**, even with a
+  firewall allow rule (L3 routing behaviour, not a policy setting).
+  `start.html` has a manual IP-entry fallback for cross-VLAN setups.
+- **The machine goes fully unreachable after its auto-off timer** —
+  the WiFi module powers down too. `device.js` shows "Machine appears
+  to be off or unreachable" instead of a raw socket error, but there's
+  no way to remotely wake it.
+- Before all 72 models were bundled, our own live E8 (article 15336,
+  hwId `EF538M V01.05`) was paired manually as `EF533V2` since `EF538`
+  wasn't in the list yet — it brewed fine, but `EF538` is the actually
+  correct profile. If you paired before this fix, check your device
+  settings against the hwId shown at pairing time.
 
 ## Setup
 
 1. The **WiFi Connect module** must already be paired to your network
-   via the J.O.E. app (already the case here).
-2. `npm install` — **no dependencies needed**, only Node's built-in
-   `net`/`dgram`/`crypto`.
+   via the J.O.E. app.
+2. `npm install` — no dependencies, only Node's built-in `net`/`dgram`/`crypto`.
 3. `homey app validate`
-4. `homey app run` — requires Docker. Running against a Homey Pro (or
-   Self-Hosted Server) without Docker installed locally? Use
-   `homey app run --remote` instead: it builds and installs the app
-   directly on the Homey, no container needed.
-5. **Pair the device**: the app scans your network (UDP broadcast on
-   port 51515), shows the detected model (or a manual picker if that
-   fails), and then you need to **press OK on the machine itself**
-   within 60 seconds — exactly like the J.O.E. app does. The auth hash
-   gets stored, so you won't need to do that again.
-   Is Homey on a different VLAN/subnet than the machine? UDP broadcast
-   doesn't cross that — use the manual IP field at the bottom of the
-   pair screen instead.
+4. `homey app run` — requires Docker. Without Docker (e.g. a remote
+   Homey Pro/Self-Hosted Server), use `homey app run --remote`
+   instead: builds and installs directly on the Homey.
+5. **Pair the device**: UDP-broadcast scan, then press OK on the
+   machine within 60 seconds. Homey on a different VLAN than the
+   machine? Use the manual IP field at the bottom of the pair screen —
+   broadcast discovery can't cross that boundary.
 
 ## Next steps
 
-- **Live-verify more of the 72 bundled profiles** as that hardware
-  becomes available.
-- **Homey App Store publishing** is a separate track: Athom's own
-  review. `author.email`, `support`/`bugs`/`source` links and a
-  plain-text `README.txt`/`README.nl.txt` (required for the store
-  listing, separate from this file) are already in place.
-  Icons/images were redone against Athom's published guidelines
-  (transparent app icon rendered as a mask, white-background driver
-  image, a simple flat-color app banner — see `assets/*.svg` and
-  `drivers/jura-machine/assets/machine.svg`). The driver image
-  deliberately reuses the app's cup glyph rather than a from-scratch
-  machine illustration (an earlier attempt read as an unrecognisable
-  blob at small sizes) — this technically goes against Athom's "don't
-  reuse your app icon for drivers" guideline, a conscious trade-off for
-  a case where the alternative looked worse. Athom's guidelines also
-  recommend "lifestyle photography" for app-store banners, which is
-  beyond what a hand-drawn vector illustration can deliver — worth a
-  real design pass before submitting.
+- Live-verify more of the 72 bundled profiles as hardware becomes available.
+- `outlet_missing`/`rear_cover_missing` alarms, on the same
+  survey-then-add pattern as the current three.
 - Raw maintenance counters (`@TG:43`) and per-product brew counters
-  (`@TR:32`) exist in the protocol (see `jura_connect`'s
-  `read_maintenance_counter`/`read_product_counters`) but aren't
-  ported yet — the percent bank (`@TG:C0`) covers the "do I need to
-  clean/descale/change the filter soon" use case more directly.
+  (`@TR:32`) exist in the protocol but aren't ported — the percent
+  bank (`@TG:C0`) already covers the main "do I need to
+  clean/descale/refill soon" use case.
+- **Homey App Store publishing**: `author.email`, `support`/`bugs`/
+  `source` links and `README.txt`/`README.nl.txt` are in place; icons
+  follow Athom's published guidelines (transparent app icon, white
+  driver image, flat-color banner — see `assets/*.svg`). Athom's
+  guidelines actually recommend lifestyle photography for the banner,
+  which is beyond what a hand-drawn vector illustration delivers —
+  worth a real design pass before submitting for certification.
 
 ## Structure
 
 ```
-app.json / app.js                    — manifest + "brew_product" flow action (autocomplete picker, filled from the paired device's own profile)
-lib/crypto.js                        — cipher (verified, model-agnostic)
+app.json / app.js                    — manifest + "brew_product" flow action
+lib/crypto.js                        — cipher (model-agnostic)
 lib/protocol.js                      — TCP framing + FrameReader
 lib/discovery.js                     — UDP discovery
 lib/profile.js                       — recipe blob encoder (model-agnostic)
 lib/models.js                        — model registry: ADD a new model HERE
 lib/profiles/*.js                    — bundled product/alert data, one file per EF code (72 total)
-lib/profiles/README.md               — step-by-step: adding a new model
+lib/profiles/README.md               — step-by-step: adding a new model + alert-name survey
 lib/juraClient.js                    — handshake/pair, status, brew, maintenance percent
 drivers/jura-machine/driver.js       — custom pair flow (discovery + model detection/picker)
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
-drivers/jura-machine/assets/alarm_generic.svg — custom icon for the alarm_generic capability, replacing Homey's default bell
-drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png (white bg + the app's cup glyph)
-assets/icon.svg                      — source SVG for the app icon (transparent, no gradient/background — Homey renders it as a mask)
-assets/banner.svg                    — source SVG for the app's small/large.png store banner images
+drivers/jura-machine/assets/alarm_*.svg — custom capability icons
+drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png
+assets/icon.svg                      — app icon source (transparent — Homey renders it as a mask)
+assets/banner.svg                    — app store small/large.png banner source
+README.txt / README.nl.txt           — plain-text App Store listing blurb (not this file)
 ```
-
-## Known limitations (deliberate scope choices)
-
-- Raw maintenance counters and per-product brew counters (pmode
-  slots) aren't ported — present in the Python library, only the
-  maintenance-percent bank was ported so far (see "Next steps").
-- The machine cannot be turned **on** remotely (the protocol has no
-  command for that, only standby); `device.js` reports that clearly
-  instead of silently failing.
