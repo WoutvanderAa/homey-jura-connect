@@ -47,6 +47,7 @@ class JuraMachineDevice extends Device {
       'alarm_water',
       'alarm_beans',
       'alarm_tray',
+      'alarm_tray_missing',
       'jura_maintenance_cleaning',
       'jura_maintenance_filter',
       'jura_maintenance_descale',
@@ -56,8 +57,15 @@ class JuraMachineDevice extends Device {
     this.setCapabilityOptions('alarm_beans', {
       icon: '/drivers/jura-machine/assets/alarm_beans.svg',
     }).catch(this.error);
+    // alarm_tray = tray/grounds present but full (empty_tray/empty_grounds).
+    // alarm_tray_missing = tray not inserted at all (insert_tray) --
+    // a genuinely different physical state the user asked to
+    // distinguish, not just a naming nitpick.
     this.setCapabilityOptions('alarm_tray', {
       icon: '/drivers/jura-machine/assets/alarm_tray.svg',
+    }).catch(this.error);
+    this.setCapabilityOptions('alarm_tray_missing', {
+      icon: '/drivers/jura-machine/assets/alarm_tray_missing.svg',
     }).catch(this.error);
 
     this._client = null;
@@ -169,10 +177,14 @@ class JuraMachineDevice extends Device {
       // compute for any paired model, not just the E8.
       this.setCapabilityValue('alarm_water', status.activeAlerts.includes('fill_water')).catch(this.error);
       this.setCapabilityValue('alarm_beans', status.activeAlerts.includes('no_beans')).catch(this.error);
+      // Two genuinely different physical states, not the same thing
+      // worded differently: alarm_tray = present but full, needs
+      // emptying; alarm_tray_missing = not inserted at all.
       this.setCapabilityValue(
         'alarm_tray',
-        ['insert_tray', 'empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name))
+        ['empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name))
       ).catch(this.error);
+      this.setCapabilityValue('alarm_tray_missing', status.activeAlerts.includes('insert_tray')).catch(this.error);
 
       if (hasError) {
         this.setWarning(status.errors.join(', ')).catch(this.error);

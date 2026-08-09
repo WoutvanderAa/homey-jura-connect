@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -116,12 +116,26 @@
     "alarm_tray": {
       "type": "boolean",
       "title": {
-        "en": "Tray",
-        "nl": "Lekbak"
+        "en": "Tray full",
+        "nl": "Lekbak vol"
       },
       "desc": {
-        "en": "On when the drip tray or grounds container needs inserting or emptying.",
-        "nl": "Actief wanneer de lekbak of het kaffeesatzbakje geplaatst of geleegd moet worden."
+        "en": "On when the drip tray or grounds container is full and needs emptying.",
+        "nl": "Actief wanneer de lekbak of het kaffeesatzbakje vol is en geleegd moet worden."
+      },
+      "getable": true,
+      "setable": false,
+      "insights": true
+    },
+    "alarm_tray_missing": {
+      "type": "boolean",
+      "title": {
+        "en": "Tray removed",
+        "nl": "Lekbak verwijderd"
+      },
+      "desc": {
+        "en": "On when the drip tray isn't inserted at all -- distinct from alarm_tray (full, still present). The machine won't operate until it's back in.",
+        "nl": "Actief wanneer de lekbak helemaal niet geplaatst is -- anders dan alarm_tray (vol, wel aanwezig). De machine werkt niet totdat de lekbak terug is geplaatst."
       },
       "getable": true,
       "setable": false,
@@ -142,6 +156,7 @@
         "alarm_water",
         "alarm_beans",
         "alarm_tray",
+        "alarm_tray_missing",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
         "jura_maintenance_descale"
@@ -764,8 +779,8 @@
       {
         "id": "alarm_tray_true",
         "title": {
-          "en": "Tray alarm turned on",
-          "nl": "Lekbak-alarm ging aan"
+          "en": "Tray became full",
+          "nl": "Lekbak werd vol"
         },
         "args": [
           {
@@ -778,8 +793,36 @@
       {
         "id": "alarm_tray_false",
         "title": {
-          "en": "Tray alarm turned off",
-          "nl": "Lekbak-alarm ging uit"
+          "en": "Tray was emptied",
+          "nl": "Lekbak werd geleegd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_missing_true",
+        "title": {
+          "en": "Tray was removed",
+          "nl": "Lekbak werd verwijderd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_missing_false",
+        "title": {
+          "en": "Tray was reinserted",
+          "nl": "Lekbak werd teruggeplaatst"
         },
         "args": [
           {
@@ -808,8 +851,22 @@
       {
         "id": "alarm_tray_on",
         "title": {
-          "en": "Tray alarm !{{is|isn't}} on",
-          "nl": "Lekbak-alarm !{{staat|staat niet}} aan"
+          "en": "Tray !{{is|isn't}} full",
+          "nl": "Lekbak !{{is|is niet}} vol"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_tray_missing_on",
+        "title": {
+          "en": "Tray !{{is|isn't}} removed",
+          "nl": "Lekbak !{{is|is niet}} verwijderd"
         },
         "args": [
           {

@@ -1,7 +1,8 @@
-<!-- Custom icon for the alarm_tray capability: a simple bin/tray
-     glyph covering insert_tray, empty_tray and empty_grounds (all
-     100% coverage across the 72 bundled profiles, see
-     lib/profiles/README.md). Pure stroke linework, fill:none, so it
+<!-- Custom icon for the alarm_tray capability (tray/grounds full,
+     needs emptying): empty_tray + empty_grounds, both 100% coverage
+     across the 72 bundled profiles, see lib/profiles/README.md. See
+     alarm_tray_missing.svg for the separate "tray not inserted at
+     all" alarm (insert_tray). Pure stroke linework, fill:none, so it
      survives Homey's monochrome capability-icon mask cleanly. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <path d="M28 32 h44 l-6 46 a6 6 0 0 1 -6 6 h-20 a6 6 0 0 1 -6 -6 z"

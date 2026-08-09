@@ -30,8 +30,9 @@ class JuraConnectApp extends App {
         .map((p) => ({ id: p.name, name: p.rawName }));
     });
 
-    // alarm_beans_true/_false and alarm_tray_true/_false fire on their
-    // own (Homey auto-triggers <boolean capability>_true/_false when
+    // alarm_beans_true/_false, alarm_tray_true/_false and
+    // alarm_tray_missing_true/_false fire on their own (Homey
+    // auto-triggers <boolean capability>_true/_false when
     // setCapabilityValue changes it) -- only the condition cards need a
     // listener here. alarm_water is a real Homey system capability and
     // already ships with its own trigger/condition cards.
@@ -42,6 +43,10 @@ class JuraConnectApp extends App {
     this.homey.flow
       .getConditionCard('alarm_tray_on')
       .registerRunListener(async (args) => args.device.getCapabilityValue('alarm_tray') === true);
+
+    this.homey.flow
+      .getConditionCard('alarm_tray_missing_on')
+      .registerRunListener(async (args) => args.device.getCapabilityValue('alarm_tray_missing') === true);
   }
 
 }

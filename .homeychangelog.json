@@ -30,5 +30,9 @@
   "0.2.6": {
     "en": "Added explicit Flow trigger/condition cards for alarm_beans and alarm_tray (custom capabilities don't get these automatically just from the alarm_ prefix, unlike built-in ones like alarm_water).",
     "nl": "Expliciete flow-trigger/conditiekaarten toegevoegd voor alarm_beans en alarm_tray (custom capabilities krijgen die niet automatisch alleen op basis van de alarm_-prefix, in tegenstelling tot ingebouwde zoals alarm_water)."
+  },
+  "0.2.7": {
+    "en": "Split alarm_tray into alarm_tray (full, needs emptying) and alarm_tray_missing (not inserted at all) -- two genuinely different physical states that were incorrectly combined.",
+    "nl": "alarm_tray gesplitst in alarm_tray (vol, moet geleegd) en alarm_tray_missing (helemaal niet geplaatst) -- twee echt verschillende situaties die ten onrechte samengevoegd waren."
   }
 }

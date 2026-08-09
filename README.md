@@ -52,11 +52,12 @@ needs to change, only `lib/models.js` and a new profile file.
 | `alarm_generic` | any active error bit | Catch-all "needs attention", custom cup icon instead of Homey's bell. |
 | `alarm_water` | `fill_water` | Homey's built-in water-alarm capability/icon. |
 | `alarm_beans` | `no_beans` | Custom capability + icon. |
-| `alarm_tray` | `insert_tray` / `empty_tray` / `empty_grounds` | One capability for the tray/grounds area rather than three near-duplicates. |
+| `alarm_tray` | `empty_tray` / `empty_grounds` | Tray or grounds container present but **full**, needs emptying. |
+| `alarm_tray_missing` | `insert_tray` | Tray not inserted **at all** — a genuinely different physical state from "full", not a duplicate. Machine won't run until it's back in. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). |
 | `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile. |
 
-The four alarm-triggering alert names (`fill_water`, `no_beans`,
+The five alert names behind these alarms (`fill_water`, `no_beans`,
 `insert_tray`, `empty_tray`, `empty_grounds`) were picked by surveying
 every bundled profile's alert list — they're the ones present, by
 name, in **all 72** profiles (see `lib/profiles/README.md`), so they
@@ -66,10 +67,16 @@ flow notification, so they stay folded into `alarm_generic`.
 `outlet_missing`/`rear_cover_missing` (96-97%) would be reasonable
 next additions on the same pattern.
 
-Every `alarm_*` capability here uses that exact prefix on purpose:
-Homey grants automatic device-tile grouping, a warning icon, *and*
-automatic Flow trigger/condition cards to anything prefixed `alarm_`
-— a differently-prefixed custom id gets none of that.
+Every custom capability here uses the `alarm_` prefix on purpose:
+Homey grants automatic device-tile grouping and a warning icon to
+anything prefixed `alarm_`. **Flow cards are not automatic**, though
+— that only applies to Homey's own built-in `alarm_*` capabilities
+(like `alarm_water`, which ships with its own cards for free); custom
+ones like `alarm_beans`/`alarm_tray`/`alarm_tray_missing` still need
+explicit `flow.triggers`/`flow.conditions` entries in `app.json` (see
+the `<capability>_true`/`_false` trigger-id convention there) plus a
+`registerRunListener` for each condition in `app.js`. Learned this the
+hard way after assuming the prefix alone was enough.
 
 Maintenance-percent direction is confirmed via
 [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
