@@ -2,6 +2,9 @@
   "id": "nl.brokebyte.juraconnect",
   "version": "0.2.0",
   "compatibility": ">=5.0.0",
+  "platforms": [
+    "local"
+  ],
   "sdk": 3,
   "name": {
     "en": "Jura Connect",
@@ -21,7 +24,8 @@
     "large": "/assets/images/large.png"
   },
   "author": {
-    "name": "Wout"
+    "name": "Wout",
+    "email": "[redacted-email]"
   },
   "support": "https://github.com/WoutvanderAa/homey-jura-connect/issues",
   "bugs": {
