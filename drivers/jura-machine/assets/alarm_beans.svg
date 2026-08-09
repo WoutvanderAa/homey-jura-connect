@@ -1,0 +1,8 @@
+<!-- Custom icon for the jura_alarm_beans capability: a single coffee
+     bean silhouette, same shape as assets/banner.svg's beans. No
+     crease detail: Homey renders capability icons as a monochrome
+     mask, so a stroke drawn over a fill (expecting a color contrast)
+     would disappear once everything becomes one color. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <ellipse cx="50" cy="50" rx="36" ry="23" transform="rotate(-25 50 50)" fill="#000000"/>
+</svg>

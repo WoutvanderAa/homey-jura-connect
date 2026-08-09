@@ -14,5 +14,9 @@
   "0.2.2": {
     "en": "Fixed the Dutch pairing-settings dropdown showing the English 'experimental, untested' label instead of a translated one.",
     "nl": "Nederlandse instellingen-dropdown toonde per ongeluk het Engelse 'experimental, untested'-label i.p.v. een vertaling; nu gefixt."
+  },
+  "0.2.3": {
+    "en": "Added dedicated water and beans alarms (alarm_water, jura_alarm_beans), picked by surveying alert names across all 72 bundled profiles for universal coverage.",
+    "nl": "Losse water- en bonen-alarmen toegevoegd (alarm_water, jura_alarm_beans), gekozen op basis van een analyse van alert-namen in alle 72 gebundelde profielen voor universele dekking."
   }
 }

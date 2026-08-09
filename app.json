@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -98,6 +98,21 @@
       "setable": false,
       "uiComponent": "sensor",
       "insights": true
+    },
+    "jura_alarm_beans": {
+      "type": "boolean",
+      "title": {
+        "en": "Beans",
+        "nl": "Bonen"
+      },
+      "desc": {
+        "en": "On when the bean hopper is empty and needs refilling.",
+        "nl": "Actief wanneer het bonenreservoir leeg is en bijgevuld moet worden."
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "insights": true
     }
   },
   "drivers": [
@@ -111,6 +126,8 @@
       "capabilities": [
         "onoff",
         "alarm_generic",
+        "alarm_water",
+        "jura_alarm_beans",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
         "jura_maintenance_descale"
