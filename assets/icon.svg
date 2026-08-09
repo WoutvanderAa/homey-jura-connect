@@ -1,15 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
-  <defs>
-    <linearGradient id="bg" x1="15%" y1="10%" x2="85%" y2="95%">
-      <stop offset="0%" stop-color="#6B4A38"/>
-      <stop offset="100%" stop-color="#3E2A1E"/>
-    </linearGradient>
-  </defs>
-  <circle cx="125" cy="125" r="115" fill="url(#bg)"/>
-  <ellipse cx="115" cy="177" rx="32" ry="4" fill="#000000" opacity="0.12"/>
-  <rect x="77" y="108" width="76" height="66" rx="10" fill="#FFFFFF"/>
-  <path d="M153 122 a19 19 0 0 1 0 40" stroke="#FFFFFF" stroke-width="8" fill="none" stroke-linecap="round"/>
-  <g stroke="#F3EFEA" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.92">
+  <rect x="77" y="108" width="76" height="66" rx="10" fill="#4B3621"/>
+  <path d="M153 122 a19 19 0 0 1 0 40" stroke="#4B3621" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <g stroke="#4B3621" stroke-width="6" stroke-linecap="round" fill="none">
     <path d="M97 98 q8 -8 0 -16 q-8 -8 0 -16"/>
     <path d="M115 98 q8 -8 0 -16 q-8 -8 0 -16"/>
     <path d="M133 98 q8 -8 0 -16 q-8 -8 0 -16"/>

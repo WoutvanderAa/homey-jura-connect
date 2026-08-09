@@ -95,10 +95,11 @@ capabilities, reading `@TG:C0`) is live-confirmed to return real
 numbers (cleaning 20%, descale 50%, filter reporting `0xFF` — this
 particular machine has no water filter cartridge fitted, which the app
 correctly treats as "not tracked" rather than showing a bogus 255%).
-What's *not* independently confirmed yet: whether higher percent means
-"closer to due" or "just serviced" — that needs watching a value
-change across an actual cleaning/descaling cycle. Titles are kept
-direction-neutral until that's confirmed.
+Direction confirmed via [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)
+(the Home Assistant project this app is also attributed to): these are
+"percent-to-next-service" indicators — **higher means more due**,
+resetting to 0% right after that maintenance action runs. Their own
+example automation fires a notification once cleaning passes 95%.
 
 ### Bugs found during live testing (fixed)
 
@@ -157,15 +158,18 @@ Also, not bugs but network reality:
 
 ## Next steps
 
-- **Confirm maintenance-percent direction** by watching the numbers
-  move across a real cleaning/descaling cycle.
 - **Live-verify more of the 72 bundled profiles** as that hardware
   becomes available.
 - **Homey App Store publishing** is a separate track: Athom's own
-  review, stricter icon guidelines than the current design, and an
-  `author.email` in `app.json` (currently just a name).
-- The icon (`assets/icon.svg`) is a first polish pass and can still be
-  refined further.
+  review, and an `author.email` in `app.json` (currently just a name).
+  Icons/images were redone against Athom's actual published guidelines
+  (transparent app icon rendered as a mask, white-background driver
+  image with a picture of the device, a simple flat-color app banner —
+  see `assets/*.svg` and `drivers/jura-machine/assets/machine.svg`).
+  Athom's guidelines actually recommend "lifestyle photography" for
+  app-store banners, which is beyond what a hand-drawn vector
+  illustration can deliver — worth a real design pass before
+  submitting.
 - Raw maintenance counters (`@TG:43`) and per-product brew counters
   (`@TR:32`) exist in the protocol (see `jura_connect`'s
   `read_maintenance_counter`/`read_product_counters`) but aren't
@@ -188,7 +192,9 @@ drivers/jura-machine/driver.js       — custom pair flow (discovery + model det
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/alarm_generic.svg — custom icon for the alarm_generic capability, replacing Homey's default bell
-assets/icon.svg, assets/banner.svg   — source SVGs for the app icons (small/large.png are rendered from these)
+drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png (white bg + device picture, per Homey's driver-image guideline)
+assets/icon.svg                      — source SVG for the app icon (transparent, no gradient/background — Homey renders it as a mask)
+assets/banner.svg                    — source SVG for the app's small/large.png store banner images
 ```
 
 ## Known limitations (deliberate scope choices)

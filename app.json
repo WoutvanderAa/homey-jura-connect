@@ -27,8 +27,12 @@
     "jura_maintenance_cleaning": {
       "type": "number",
       "title": {
-        "en": "Cleaning",
-        "nl": "Reiniging"
+        "en": "Cleaning due",
+        "nl": "Reiniging nodig"
+      },
+      "desc": {
+        "en": "Percent towards the next cleaning cycle being due — higher means more due, drops back to 0% right after cleaning runs.",
+        "nl": "Percentage richting de volgende reinigingsbeurt — hoger betekent meer nodig, valt terug naar 0% direct na het reinigen."
       },
       "units": {
         "en": "%",
@@ -45,8 +49,12 @@
     "jura_maintenance_filter": {
       "type": "number",
       "title": {
-        "en": "Filter",
-        "nl": "Filter"
+        "en": "Filter due",
+        "nl": "Filter nodig"
+      },
+      "desc": {
+        "en": "Percent towards the water filter cartridge needing replacement — higher means more due. Not shown if the machine has no filter cartridge fitted.",
+        "nl": "Percentage richting vervanging van de waterfilter-cartridge — hoger betekent meer nodig. Wordt niet getoond als de machine geen filtercartridge heeft."
       },
       "units": {
         "en": "%",
@@ -63,8 +71,12 @@
     "jura_maintenance_descale": {
       "type": "number",
       "title": {
-        "en": "Descale",
-        "nl": "Ontkalken"
+        "en": "Descale due",
+        "nl": "Ontkalken nodig"
+      },
+      "desc": {
+        "en": "Percent towards descaling being due — higher means more due, drops back to 0% right after descaling runs.",
+        "nl": "Percentage richting ontkalken — hoger betekent meer nodig, valt terug naar 0% direct na het ontkalken."
       },
       "units": {
         "en": "%",
