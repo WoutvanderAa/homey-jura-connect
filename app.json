@@ -24,8 +24,7 @@
     "large": "/assets/images/large.png"
   },
   "author": {
-    "name": "Wout",
-    "email": "[redacted-email]"
+    "name": "Wout"
   },
   "support": "https://github.com/WoutvanderAa/homey-jura-connect/issues",
   "bugs": {
