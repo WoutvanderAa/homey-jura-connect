@@ -19,9 +19,9 @@ without a working app ever showing up.
 
 ## Try it
 
-Currently in Homey's Test/certification pipeline — install it via the
-Test link, no special permission needed:
+Install the Test build, no special permission needed:
 **https://homey.app/a/nl.brokebyte.juraconnect/test/**
+(App Store listing is pending certification — see "Next steps".)
 
 Got a Jura with WiFi Connect that's a different model than the E8?
 Pair it and let us know how it went via
@@ -44,6 +44,9 @@ Jura Z8 brewing coffee, by **coffee-rank**
 ([source](https://www.flickr.com/photos/189612330@N06/50330277776)),
 licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
 cropped from the original.
+
+**Driver image** (`drivers/jura-machine/assets/images/{large,small}.png`):
+a photo of the author's own paired E8, no external license needed.
 
 ## Supported models
 
@@ -150,6 +153,11 @@ Network/hardware realities, not bugs:
   wasn't in the list yet — it brewed fine, but `EF538` is the actually
   correct profile. If you paired before this fix, check your device
   settings against the hwId shown at pairing time.
+- **The on-machine pairing confirmation isn't always an "OK" button** —
+  the E8 has one, but a real ENA 4 confirms via its bean button
+  instead. The pairing prompt text used to say "press OK", which was
+  actively wrong for that model; it's now model-agnostic ("confirm on
+  the machine's display").
 - **Alarms (tray/water/etc.) can lag a physical change by 3-4
   minutes**, confirmed on both an E8 and an ENA 4 — reported as a bug
   at first, but this is not this app's polling: a full, restart-free
@@ -189,16 +197,10 @@ Network/hardware realities, not bugs:
   (`@TR:32`) exist in the protocol but aren't ported — the percent
   bank (`@TG:C0`) already covers the main "do I need to
   clean/descale/refill soon" use case.
-- **Homey App Store publishing**: first certification submission was
-  rejected on four points — description too long/implementation-heavy
-  (fixed: now a one-line tagline), app icon and driver image being the
-  same filled cup glyph rather than distinct outline art (fixed: app
-  icon is now an outline coffee bean, no fill, no background colour,
-  per Homey's guidelines), driver image needing to be a real product
-  photo instead of an enlarged icon (fixed: real E8 photo), and the
-  app banner needing to be a genuine lifestyle photo instead of an
-  illustration (fixed: real photo, credited in "Attribution" above).
-  All four addressed — ready to resubmit.
+- **Resubmit for Homey App Store certification.** The first submission
+  was rejected on four points (description, app icon, driver image,
+  app banner) — all four are now fixed; see git history for the
+  before/after if a second rejection needs comparing against the first.
 
 ## Structure
 
