@@ -1,20 +1,17 @@
-<!-- App icon. Homey's App Store guidelines (linked from the certification
-     rejection) explicitly forbid filled illustrations/background colours
-     here -- outline-only vector work on a transparent background, distinct
-     from the driver image (which shows the actual machine). A coffee bean
-     rather than a cup so it doesn't collide with the driver image's own
-     cup-adjacent framing, and carries no Jura branding.
+<!-- App icon: filled coffee-bean silhouette with a genuinely cut-out
+     crease (fill-rule="evenodd" compound path, not a stroke overlay).
+     v1 used stroke-only outline paths per a literal reading of Homey's
+     "no filled illustrations" guideline text, but the live App Store
+     listing rendered it as a blank circle -- whatever renders Homey's
+     masked app-icon badge appears to only look at filled regions, so
+     an unfilled stroke-only icon shows nothing at all. This version
+     is filled, with the crease as real transparent negative space
+     (confirmed to survive being flattened against any backdrop
+     colour), so it degrades correctly regardless of how it's masked.
      Regenerate previews with: sharp(this).resize(N,N).png() -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
-  <path d="M125 40
-           C180 40 205 85 205 125
-           C205 165 180 210 125 210
-           C70 210 45 165 45 125
-           C45 85 70 40 125 40
-           Z"
-        fill="none" stroke="#C0392B" stroke-width="12" stroke-linejoin="round"/>
-  <path d="M125 50
-           C110 78 143 96 129 125
-           C115 154 148 172 125 200"
-        fill="none" stroke="#C0392B" stroke-width="12" stroke-linecap="round"/>
+  <path fill-rule="evenodd" fill="#C0392B" d="
+    M125 40 C180 40 205 85 205 125 C205 165 180 210 125 210 C70 210 45 165 45 125 C45 85 70 40 125 40 Z
+    M121 45 C106 75 141 95 126 125 C111 155 146 175 121 205 L129 205 C154 175 119 155 134 125 C149 95 114 75 129 45 Z
+  "/>
 </svg>
