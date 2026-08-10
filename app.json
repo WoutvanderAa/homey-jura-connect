@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"

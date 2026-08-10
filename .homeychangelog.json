@@ -38,5 +38,8 @@
   "0.2.8": {
     "en": "Tightened status polling from 30s to 10s so alarms and online/offline status feel responsive instead of lagging behind.",
     "nl": "Status-polling verkort van 30s naar 10s zodat alarmen en online/offline-status sneller reageren i.p.v. achter te lopen."
+  },
+  "0.3.0": {
+    "en": "- Fixed onoff falsely reporting success when powering off (protocol limitation, now rejected with a clear error)"
   }
 }
