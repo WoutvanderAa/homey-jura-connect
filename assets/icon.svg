@@ -1,9 +1,20 @@
+<!-- App icon. Homey's App Store guidelines (linked from the certification
+     rejection) explicitly forbid filled illustrations/background colours
+     here -- outline-only vector work on a transparent background, distinct
+     from the driver image (which shows the actual machine). A coffee bean
+     rather than a cup so it doesn't collide with the driver image's own
+     cup-adjacent framing, and carries no Jura branding.
+     Regenerate previews with: sharp(this).resize(N,N).png() -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
-  <rect x="77" y="108" width="76" height="66" rx="10" fill="#4B3621"/>
-  <path d="M153 122 a19 19 0 0 1 0 40" stroke="#4B3621" stroke-width="8" fill="none" stroke-linecap="round"/>
-  <g stroke="#4B3621" stroke-width="6" stroke-linecap="round" fill="none">
-    <path d="M97 98 q8 -8 0 -16 q-8 -8 0 -16"/>
-    <path d="M115 98 q8 -8 0 -16 q-8 -8 0 -16"/>
-    <path d="M133 98 q8 -8 0 -16 q-8 -8 0 -16"/>
-  </g>
+  <path d="M125 40
+           C180 40 205 85 205 125
+           C205 165 180 210 125 210
+           C70 210 45 165 45 125
+           C45 85 70 40 125 40
+           Z"
+        fill="none" stroke="#C0392B" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M125 50
+           C110 78 143 96 129 125
+           C115 154 148 172 125 200"
+        fill="none" stroke="#C0392B" stroke-width="12" stroke-linecap="round"/>
 </svg>

@@ -1,9 +1,9 @@
-<!-- Source for drivers/jura-machine/assets/images/{large,small}.png.
-     Same cup+steam glyph as assets/icon.svg, on the white background
-     Homey's driver-image guideline requires. Replaces an earlier
-     bean-to-cup machine illustration that read as an unrecognisable
-     blob at small sizes; the user preferred consistency with the app
-     icon over a literal (but muddy) device illustration.
+<!-- Currently the source for drivers/jura-machine/assets/images/{large,small}.png,
+     but Homey's certification review wants a real product photo here
+     instead (white background), same as the app banner did before it
+     was swapped for a real photo -- see README's "Next steps". Kept as
+     the fallback until that photo exists; no longer meant to match
+     assets/icon.svg's style now that the app icon is an outline bean.
      Regenerate with: sharp(this).resize(500,500|75,75).png() -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
   <rect x="0" y="0" width="250" height="250" fill="#FFFFFF"/>
