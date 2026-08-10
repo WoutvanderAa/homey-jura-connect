@@ -39,6 +39,12 @@ cipher, and the machine XML catalogue goes there — this repo is a
 port, not original reverse-engineering. Both projects are MIT-licensed
 (see `LICENSE`).
 
+**App Store banner photo** (`assets/images/{large,small}.png`): a real
+Jura Z8 brewing coffee, by **coffee-rank**
+([source](https://www.flickr.com/photos/189612330@N06/50330277776)),
+licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
+cropped from the original.
+
 ## Supported models
 
 **All 72 models** from `jura_connect`'s `JOE_MACHINES.TXT` catalogue

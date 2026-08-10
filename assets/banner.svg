@@ -1,8 +1,8 @@
-<!-- Source for assets/images/{large,small}.png (500x350 / 250x175 banners).
-     Flat brand-color background, the same cup glyph used for the app
-     icon, plus a handful of individually-placed coffee beans behind it
-     as a subtle accent (deliberately not a repeating tiled pattern).
-     Regenerate with: sharp(this).resize(500,350|250,175).png() -->
+<!-- No longer the source for assets/images/{large,small}.png -- Homey's
+     certification review asked for a genuine lifestyle photo instead of
+     an illustration, so those PNGs are now a cropped real photo (see
+     README's "Image credits" section for the license/attribution).
+     Kept here for reference/history only. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 350">
   <rect x="0" y="0" width="500" height="350" fill="#4B3621"/>
 
