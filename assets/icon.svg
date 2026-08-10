@@ -1,16 +1,18 @@
 <!-- App icon: filled coffee-bean silhouette with a genuinely cut-out
      crease (fill-rule="evenodd" compound path, not a stroke overlay).
-     v1 used stroke-only outline paths per a literal reading of Homey's
-     "no filled illustrations" guideline text, but the live App Store
-     listing rendered it as a blank circle -- whatever renders Homey's
-     masked app-icon badge appears to only look at filled regions, so
-     an unfilled stroke-only icon shows nothing at all. This version
-     is filled, with the crease as real transparent negative space
-     (confirmed to survive being flattened against any backdrop
-     colour), so it degrades correctly regardless of how it's masked.
+     v1 used stroke-only paths, rendered as a blank circle live.
+     v2 filled it but with a mid-tone red (#C0392B), still nearly
+     invisible live. Root cause found by inspecting the actual page:
+     Homey renders this via CSS `mask-image` (confirmed in the live
+     DOM: .app-header__icon-inner's mask-image points straight at
+     this file), which is luminance-based by default: the fill colour's
+     *brightness* controls how opaque the mask is, not its hue. A
+     mid-tone red is only ~33% luminance, nearly invisible against the
+     dark brandColor backdrop it's masked onto. White = 100% luminance
+     = fully opaque mask, which is what actually shows up.
      Regenerate previews with: sharp(this).resize(N,N).png() -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
-  <path fill-rule="evenodd" fill="#C0392B" d="
+  <path fill-rule="evenodd" fill="#FFFFFF" d="
     M125 40 C180 40 205 85 205 125 C205 165 180 210 125 210 C70 210 45 165 45 125 C45 85 70 40 125 40 Z
     M121 45 C106 75 141 95 126 125 C111 155 146 175 121 205 L129 205 C154 175 119 155 134 125 C149 95 114 75 129 45 Z
   "/>

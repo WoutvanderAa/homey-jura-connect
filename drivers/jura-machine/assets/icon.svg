@@ -1,0 +1,12 @@
+<!-- Driver icon: used by Homey's flow-card / capability-list icon-inner
+     elements (CSS mask-image, luminance-based; see assets/icon.svg's
+     comment for how that was found and why the fill must be white).
+     This file didn't exist at all before, which is why those icons
+     were rendering as flat black circles. Same bean glyph as the app
+     icon for visual consistency between the two. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
+  <path fill-rule="evenodd" fill="#FFFFFF" d="
+    M125 40 C180 40 205 85 205 125 C205 165 180 210 125 210 C70 210 45 165 45 125 C45 85 70 40 125 40 Z
+    M121 45 C106 75 141 95 126 125 C111 155 146 175 121 205 L129 205 C154 175 119 155 134 125 C149 95 114 75 129 45 Z
+  "/>
+</svg>
