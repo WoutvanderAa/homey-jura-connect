@@ -192,14 +192,13 @@ Network/hardware realities, not bugs:
 - **Homey App Store publishing**: first certification submission was
   rejected on four points — description too long/implementation-heavy
   (fixed: now a one-line tagline), app icon and driver image being the
-  same filled cup glyph rather than distinct outline art (app icon
-  fixed: outline coffee bean, no fill, no background colour, per
-  Homey's guidelines), driver image needing to be a real product photo
-  on a white background instead of an enlarged icon (**not done yet —
-  needs an actual photo of a paired machine**), and the app banner
-  needing to be a genuine lifestyle photo instead of an illustration
-  (fixed: real photo, credited in "Attribution" above). Once the
-  driver image has a real photo, resubmit.
+  same filled cup glyph rather than distinct outline art (fixed: app
+  icon is now an outline coffee bean, no fill, no background colour,
+  per Homey's guidelines), driver image needing to be a real product
+  photo instead of an enlarged icon (fixed: real E8 photo), and the
+  app banner needing to be a genuine lifestyle photo instead of an
+  illustration (fixed: real photo, credited in "Attribution" above).
+  All four addressed — ready to resubmit.
 
 ## Structure
 
@@ -217,7 +216,8 @@ drivers/jura-machine/driver.js       — custom pair flow (discovery + model det
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/alarm_*.svg — custom capability icons
-drivers/jura-machine/assets/machine.svg — driver's small/large.png source, until a real device photo replaces it
+drivers/jura-machine/assets/images/{large,small}.png — driver image, a real photo of the E8
+drivers/jura-machine/assets/machine.svg — old illustrated driver-image source, kept for reference only
 assets/icon.svg                      — app icon source: outline coffee bean, transparent background
 assets/images/{large,small}.png      — app store banner, a real photo (credited in "Attribution")
 assets/banner.svg                    — old illustrated banner source, kept for reference only

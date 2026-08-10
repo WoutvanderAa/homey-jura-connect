@@ -1,10 +1,6 @@
-<!-- Currently the source for drivers/jura-machine/assets/images/{large,small}.png,
-     but Homey's certification review wants a real product photo here
-     instead (white background), same as the app banner did before it
-     was swapped for a real photo -- see README's "Next steps". Kept as
-     the fallback until that photo exists; no longer meant to match
-     assets/icon.svg's style now that the app icon is an outline bean.
-     Regenerate with: sharp(this).resize(500,500|75,75).png() -->
+<!-- No longer the source for drivers/jura-machine/assets/images/{large,small}.png
+     -- those are now a real photo of the E8, per Homey's certification
+     review. Kept for reference/history only, like assets/banner.svg. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250">
   <rect x="0" y="0" width="250" height="250" fill="#FFFFFF"/>
   <g transform="translate(-99.1,-91) scale(1.8)">
