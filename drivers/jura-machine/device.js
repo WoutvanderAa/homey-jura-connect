@@ -51,6 +51,8 @@ class JuraMachineDevice extends Device {
       'alarm_beans',
       'alarm_tray',
       'alarm_tray_missing',
+      'alarm_outlet_missing',
+      'alarm_rear_cover_missing',
       'jura_maintenance_cleaning',
       'jura_maintenance_filter',
       'jura_maintenance_descale',
@@ -69,6 +71,15 @@ class JuraMachineDevice extends Device {
     }).catch(this.error);
     this.setCapabilityOptions('alarm_tray_missing', {
       icon: '/drivers/jura-machine/assets/alarm_tray_missing.svg',
+    }).catch(this.error);
+    // outlet_missing/rear_cover_missing: ~96-97% profile coverage (not
+    // 100% like the alarms above), see lib/profiles/README.md's alert
+    // survey -- profiles that lack the name just never set these true.
+    this.setCapabilityOptions('alarm_outlet_missing', {
+      icon: '/drivers/jura-machine/assets/alarm_outlet_missing.svg',
+    }).catch(this.error);
+    this.setCapabilityOptions('alarm_rear_cover_missing', {
+      icon: '/drivers/jura-machine/assets/alarm_rear_cover_missing.svg',
     }).catch(this.error);
 
     this._client = null;
@@ -193,6 +204,11 @@ class JuraMachineDevice extends Device {
         ['empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name))
       ).catch(this.error);
       this.setCapabilityValue('alarm_tray_missing', status.activeAlerts.includes('insert_tray')).catch(this.error);
+      // ~96-97% profile coverage, not 100% -- on profiles that lack the
+      // alert name entirely, activeAlerts simply never contains it, so
+      // this stays false rather than erroring.
+      this.setCapabilityValue('alarm_outlet_missing', status.activeAlerts.includes('outlet_missing')).catch(this.error);
+      this.setCapabilityValue('alarm_rear_cover_missing', status.activeAlerts.includes('rear_cover_missing')).catch(this.error);
 
       if (hasError) {
         this.setWarning(status.errors.join(', ')).catch(this.error);

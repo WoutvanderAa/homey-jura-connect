@@ -139,6 +139,34 @@
       "getable": true,
       "setable": false,
       "insights": true
+    },
+    "alarm_outlet_missing": {
+      "type": "boolean",
+      "title": {
+        "en": "Outlet missing",
+        "nl": "Uitloop ontbreekt"
+      },
+      "desc": {
+        "en": "On when the removable coffee-dispensing spout isn't attached. Not present on every bundled profile (about 97% coverage).",
+        "nl": "Actief wanneer de afneembare koffie-uitloop niet is bevestigd. Niet op elk gebundeld profiel aanwezig (circa 97% dekking)."
+      },
+      "getable": true,
+      "setable": false,
+      "insights": true
+    },
+    "alarm_rear_cover_missing": {
+      "type": "boolean",
+      "title": {
+        "en": "Rear cover missing",
+        "nl": "Achterklep ontbreekt"
+      },
+      "desc": {
+        "en": "On when the removable rear access panel isn't attached. Not present on every bundled profile (about 96% coverage).",
+        "nl": "Actief wanneer de afneembare achterklep niet is bevestigd. Niet op elk gebundeld profiel aanwezig (circa 96% dekking)."
+      },
+      "getable": true,
+      "setable": false,
+      "insights": true
     }
   },
   "drivers": [
@@ -156,6 +184,8 @@
         "alarm_beans",
         "alarm_tray",
         "alarm_tray_missing",
+        "alarm_outlet_missing",
+        "alarm_rear_cover_missing",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
         "jura_maintenance_descale"
@@ -830,6 +860,62 @@
             "filter": "driver_id=jura-machine"
           }
         ]
+      },
+      {
+        "id": "alarm_outlet_missing_true",
+        "title": {
+          "en": "Outlet was removed",
+          "nl": "Uitloop werd verwijderd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_outlet_missing_false",
+        "title": {
+          "en": "Outlet was reattached",
+          "nl": "Uitloop werd teruggeplaatst"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_rear_cover_missing_true",
+        "title": {
+          "en": "Rear cover was removed",
+          "nl": "Achterklep werd verwijderd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_rear_cover_missing_false",
+        "title": {
+          "en": "Rear cover was reattached",
+          "nl": "Achterklep werd teruggeplaatst"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
       }
     ],
     "conditions": [
@@ -866,6 +952,34 @@
         "title": {
           "en": "Tray !{{is|isn't}} removed",
           "nl": "Lekbak !{{is|is niet}} verwijderd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_outlet_missing_on",
+        "title": {
+          "en": "Outlet !{{is|isn't}} removed",
+          "nl": "Uitloop !{{is|is niet}} verwijderd"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "alarm_rear_cover_missing_on",
+        "title": {
+          "en": "Rear cover !{{is|isn't}} removed",
+          "nl": "Achterklep !{{is|is niet}} verwijderd"
         },
         "args": [
           {

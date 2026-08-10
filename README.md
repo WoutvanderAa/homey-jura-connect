@@ -77,29 +77,34 @@ needs to change, only `lib/models.js` and a new profile file.
 | `alarm_beans` | `no_beans` | Custom capability + icon. |
 | `alarm_tray` | `empty_tray` / `empty_grounds` | Tray or grounds container present but **full**, needs emptying. |
 | `alarm_tray_missing` | `insert_tray` | Tray not inserted **at all** — a genuinely different physical state from "full", not a duplicate. Machine won't run until it's back in. |
+| `alarm_outlet_missing` | `outlet_missing` | The removable coffee-dispensing spout isn't attached. ~97% profile coverage, not 100% — see below. |
+| `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). |
 | `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile. |
 
-The five alert names behind these alarms (`fill_water`, `no_beans`,
-`insert_tray`, `empty_tray`, `empty_grounds`) were picked by surveying
-every bundled profile's alert list — they're the ones present, by
-name, in **all 72** profiles (see `lib/profiles/README.md`), so they
-work for any paired model. `insert_coffee_bin` and `fill_system` are
-also 100% but read as mechanical faults rather than something worth a
-flow notification, so they stay folded into `alarm_generic`.
-`outlet_missing`/`rear_cover_missing` (96-97%) would be reasonable
-next additions on the same pattern.
+The five alert names behind the first four alarms above (`fill_water`,
+`no_beans`, `insert_tray`, `empty_tray`, `empty_grounds`) were picked
+by surveying every bundled profile's alert list — they're the ones
+present, by name, in **all 72** profiles (see
+`lib/profiles/README.md`), so they work for any paired model.
+`insert_coffee_bin` and `fill_system` are also 100% but read as
+mechanical faults rather than something worth a flow notification, so
+they stay folded into `alarm_generic`. `outlet_missing`/
+`rear_cover_missing` are the next tier down at 96-97% (70/72 and
+69/72 profiles respectively) — not universal, but common enough to be
+worth their own capability; on the handful of profiles that lack the
+alert name entirely, these two simply never go `true`, same as any
+other alarm on a machine that can't report it.
 
 Every custom capability here uses the `alarm_` prefix on purpose:
 Homey grants automatic device-tile grouping and a warning icon to
 anything prefixed `alarm_`. **Flow cards are not automatic**, though
 — that only applies to Homey's own built-in `alarm_*` capabilities
 (like `alarm_water`, which ships with its own cards for free); custom
-ones like `alarm_beans`/`alarm_tray`/`alarm_tray_missing` still need
-explicit `flow.triggers`/`flow.conditions` entries in `app.json` (see
-the `<capability>_true`/`_false` trigger-id convention there) plus a
-`registerRunListener` for each condition in `app.js`. Learned this the
-hard way after assuming the prefix alone was enough.
+ones still need explicit `flow.triggers`/`flow.conditions` entries in
+`app.json` (see the `<capability>_true`/`_false` trigger-id convention
+there) plus a `registerRunListener` for each condition in `app.js`.
+Learned this the hard way after assuming the prefix alone was enough.
 
 Maintenance-percent direction is confirmed via
 [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
@@ -191,8 +196,6 @@ Network/hardware realities, not bugs:
 ## Next steps
 
 - Live-verify more of the 72 bundled profiles as hardware becomes available.
-- `outlet_missing`/`rear_cover_missing` alarms, on the same
-  survey-then-add pattern as the current three.
 - Raw maintenance counters (`@TG:43`) and per-product brew counters
   (`@TR:32`) exist in the protocol but aren't ported — the percent
   bank (`@TG:C0`) already covers the main "do I need to
