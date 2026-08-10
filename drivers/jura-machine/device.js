@@ -76,13 +76,18 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
 
     this.registerCapabilityListener('onoff', async (value) => {
-      // The machine has no remote power-on over this protocol (WifiFrog
-      // has no equivalent of the Bluetooth @AN:01); it can only be
-      // switched to standby. Powering off is possible, powering back on
-      // from Homey is not -- reflect that rather than silently failing.
+      // Fully read-only in both directions. @AN:02 (standby) is a
+      // UART/Bluetooth-era command -- jura_connect's own command
+      // registry notes the WiFi dongle silently ignores it (request
+      // lands, machine stays on), confirmed against a real ENA 4.
+      // Sending it anyway would make Homey report the toggle as
+      // successful when nothing actually happened on the machine, so
+      // reject both directions instead of silently no-op'ing one.
       if (!value) {
-        await this._connectIfNeeded();
-        await this._client.sendCommand('@AN:02');
+        throw new Error(
+          this.homey.__('errors.cannot_power_off') ||
+            'This machine cannot be switched off remotely — press the power button on the machine itself.'
+        );
       } else {
         throw new Error(
           this.homey.__('errors.cannot_power_on') ||

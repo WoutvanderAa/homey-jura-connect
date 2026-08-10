@@ -62,7 +62,7 @@ needs to change, only `lib/models.js` and a new profile file.
 
 | Capability | Source | Notes |
 |---|---|---|
-| `onoff` | `@HU?` status | Read-only in practice: the protocol has no remote power-*on* command, only standby. Turning off sends `@AN:02`. |
+| `onoff` | `@HU?` status | Fully read-only — toggling either direction throws. There's no remote power-*on* command, and power-*off* (`@AN:02`) is a UART/Bluetooth-era command that `jura_connect`'s own command registry documents the WiFi dongle silently ignoring; confirmed on a real ENA 4. If it ever works on your firmware, that's worth reporting. |
 | `alarm_generic` | any active error bit | Catch-all "needs attention", custom cup icon instead of Homey's bell. |
 | `alarm_water` | `fill_water` | Homey's built-in water-alarm capability/icon. |
 | `alarm_beans` | `no_beans` | Custom capability + icon. |
