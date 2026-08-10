@@ -15,8 +15,9 @@ class JuraMachineDriver extends Driver {
    * Custom two-screen pair flow (see pair/start.html + pair/connect.html):
    *  1. "start" broadcasts UDP discovery and lists machines found on the LAN.
    *  2. "connect" runs the interactive @HP: handshake against the chosen
-   *     machine -- this is the step where the user has to press OK on the
-   *     coffee machine's own display, so it needs live progress feedback
+   *     machine -- this is the step where the user has to confirm on the
+   *     coffee machine's own display (button varies by model), so it
+   *     needs live progress feedback
    *     rather than the generic list_devices/add_devices templates.
    */
   async onPair(session) {
