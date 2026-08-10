@@ -173,10 +173,12 @@ Network/hardware realities, not bugs:
 4. `homey app run` — requires Docker. Without Docker (e.g. a remote
    Homey Pro/Self-Hosted Server), use `homey app run --remote`
    instead: builds and installs directly on the Homey.
-5. **Pair the device**: UDP-broadcast scan, then press OK on the
-   machine within 60 seconds. Homey on a different VLAN than the
-   machine? Use the manual IP field at the bottom of the pair screen —
-   broadcast discovery can't cross that boundary.
+5. **Pair the device**: UDP-broadcast scan, then confirm the "Connect"
+   prompt on the machine's own display within 60 seconds — the exact
+   button varies by model (often OK/checkmark, the bean button on the
+   ENA line). Homey on a different VLAN than the machine? Use the
+   manual IP field at the bottom of the pair screen — broadcast
+   discovery can't cross that boundary.
 
 ## Next steps
 
@@ -187,13 +189,17 @@ Network/hardware realities, not bugs:
   (`@TR:32`) exist in the protocol but aren't ported — the percent
   bank (`@TG:C0`) already covers the main "do I need to
   clean/descale/refill soon" use case.
-- **Homey App Store publishing**: `author.email`, `support`/`bugs`/
-  `source` links and `README.txt`/`README.nl.txt` are in place; icons
-  follow Athom's published guidelines (transparent app icon, white
-  driver image, flat-color banner — see `assets/*.svg`). Athom's
-  guidelines actually recommend lifestyle photography for the banner,
-  which is beyond what a hand-drawn vector illustration delivers —
-  worth a real design pass before submitting for certification.
+- **Homey App Store publishing**: first certification submission was
+  rejected on four points — description too long/implementation-heavy
+  (fixed: now a one-line tagline), app icon and driver image being the
+  same filled cup glyph rather than distinct outline art (app icon
+  fixed: outline coffee bean, no fill, no background colour, per
+  Homey's guidelines), driver image needing to be a real product photo
+  on a white background instead of an enlarged icon (**not done yet —
+  needs an actual photo of a paired machine**), and the app banner
+  needing to be a genuine lifestyle photo instead of an illustration
+  (fixed: real photo, credited in "Attribution" above). Once the
+  driver image has a real photo, resubmit.
 
 ## Structure
 
@@ -211,8 +217,9 @@ drivers/jura-machine/driver.js       — custom pair flow (discovery + model det
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/alarm_*.svg — custom capability icons
-drivers/jura-machine/assets/machine.svg — source SVG for the driver's small/large.png
-assets/icon.svg                      — app icon source (transparent — Homey renders it as a mask)
-assets/banner.svg                    — app store small/large.png banner source
+drivers/jura-machine/assets/machine.svg — driver's small/large.png source, until a real device photo replaces it
+assets/icon.svg                      — app icon source: outline coffee bean, transparent background
+assets/images/{large,small}.png      — app store banner, a real photo (credited in "Attribution")
+assets/banner.svg                    — old illustrated banner source, kept for reference only
 README.txt / README.nl.txt           — plain-text App Store listing blurb (not this file)
 ```
