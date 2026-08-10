@@ -41,5 +41,8 @@
   },
   "0.3.0": {
     "en": "- Fixed onoff falsely reporting success when powering off (protocol limitation, now rejected with a clear error)"
+  },
+  "0.3.1": {
+    "en": "Fixed app icon rendering blank on the Store listing; fixed pairing prompt assuming an OK button that not every model has; documented the multi-minute alarm-update delay as a machine/dongle quirk, not a bug; new driver image and app banner (real photos, per App Store guidelines); shortened app description."
   }
 }
