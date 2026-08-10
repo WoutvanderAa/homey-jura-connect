@@ -47,5 +47,8 @@
   },
   "0.3.2": {
     "en": "Fixed both app icon and driver flow-card icons rendering invisible/blank on the live listing — Homey masks icons by CSS luminance, not simple rasterization, so the fill needed to be white; the driver icon file also didn't exist at all until now."
+  },
+  "0.4.0": {
+    "en": "Added alarm_outlet_missing and alarm_rear_cover_missing capabilities with flow triggers/conditions, covering ~96-97% of bundled profiles on the same survey-then-add pattern as the existing tray/water/beans alarms."
   }
 }
