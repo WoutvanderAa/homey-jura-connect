@@ -144,6 +144,19 @@ Network/hardware realities, not bugs:
   wasn't in the list yet — it brewed fine, but `EF538` is the actually
   correct profile. If you paired before this fix, check your device
   settings against the hwId shown at pairing time.
+- **Alarms (tray/water/etc.) can lag a physical change by 3-4
+  minutes**, confirmed on both an E8 and an ENA 4 — reported as a bug
+  at first, but this is not this app's polling: a full, restart-free
+  test showed `@HU?` replies coming back exactly every 10s the entire
+  time, just with a stale-but-honest value until the machine's own
+  status word caught up. `jura_connect`'s own simulator documents
+  "periodic unsolicited `@TF:` status broadcasts" as a real protocol
+  feature, and `jura-connect-hass`'s README notes "JURA dongles sleep
+  regularly" — so the machine/dongle appears to refresh its internal
+  status on its own multi-minute cycle, independent of how often
+  anything asks. There's no faster read command to fall back on
+  (`@HU?` is the only one, in this app and upstream), so this isn't
+  fixable from the client side.
 
 ## Setup
 
