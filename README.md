@@ -21,7 +21,7 @@ without a working app ever showing up.
 
 Currently in Homey's Test/certification pipeline — install it via the
 Test link, no special permission needed:
-**https://homey.app/en-us/app/nl.brokebyte.juraconnect/test/**
+**https://homey.app/a/nl.brokebyte.juraconnect/test/**
 
 Got a Jura with WiFi Connect that's a different model than the E8?
 Pair it and let us know how it went via

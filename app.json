@@ -11,8 +11,8 @@
     "nl": "Jura Connect"
   },
   "description": {
-    "en": "Control a Jura coffee machine fitted with the WiFi Connect module — local, no cloud. Ships with profiles for 72 Jura models; only the E8 (EF538) is live-verified so far, see the README.",
-    "nl": "Bedien een Jura-koffiemachine met de WiFi Connect-module — lokaal, geen cloud. Wordt geleverd met profielen voor 72 Jura-modellen; alleen de E8 (EF538) is tot nu toe live geverifieerd, zie de README."
+    "en": "Your Jura coffee machine, fully local — no cloud, no account.",
+    "nl": "Je Jura-koffiemachine, volledig lokaal — geen cloud, geen account."
   },
   "category": [
     "appliances"
