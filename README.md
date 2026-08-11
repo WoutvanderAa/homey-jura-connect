@@ -208,6 +208,10 @@ Network/hardware realities, not bugs:
 
 ## Setup
 
+For running the app from source (contributing, adding a model, or
+just poking around) — regular users don't need any of this, just the
+Test link in "Try it" above.
+
 1. The **WiFi Connect module** must already be paired to your network
    via the J.O.E. app.
 2. `npm install` — no dependencies, only Node's built-in `net`/`dgram`/`crypto`.

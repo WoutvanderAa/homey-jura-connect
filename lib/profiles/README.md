@@ -8,12 +8,19 @@ folder, and their registration in `../models.js`.
 
 ## Currently bundled
 
-| EF code | Model | Source |
+All 72 EF codes from `jura_connect`'s `JOE_MACHINES.TXT` are bundled
+here, one file per code — see `../models.js`'s `MODELS` array for the
+full list (label, EF code, every known article number). Two are
+live-verified against real hardware so far, both with the `verified:
+true` flag set in `models.js`:
+
+| EF code | Model | Verified via |
 |---|---|---|
-| `EF533` | Jura E8 (older) | live-verified recipe blob (`jura_connect`) |
-| `EF533V2` | Jura E8 (newer) | same |
-| `EF532` / `EF532V2` | Jura E6 | bundled from the same catalogue, not personally tested |
-| `EF1091` | Jura S8 (EB) | the model most live-verified in `jura_connect` itself |
+| `EF538` | Jura E8 | our own machine — pairing, status, brewing, maintenance %, alarms |
+| `EF1013` | ENA 4 (EA/EB/etc. — same EF code across regional variants) | an external tester's [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) — pairing, brewing, all five alarms at the time |
+
+Every other bundled profile is untested against real hardware and
+labelled accordingly in the pairing/settings UI.
 
 ## Adding a new one
 
