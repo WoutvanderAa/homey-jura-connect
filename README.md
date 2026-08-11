@@ -51,13 +51,15 @@ a photo of the author's own paired E8, no external license needed.
 ## Supported models
 
 **All 72 models** from `jura_connect`'s `JOE_MACHINES.TXT` catalogue
-are bundled (`lib/profiles/*.js`, one file per EF code). Only the
-**Jura E8 (EF538)** has been run against physical hardware; every
-other model's label is suffixed "— experimental, untested" in the
-pairing/settings UI (`lib/models.js`'s `verified` flag) — that's a
-literal statement, not a disclaimer for show. Found a bug, or got one
-working? [Open an issue](https://github.com/WoutvanderAa/homey-jura-connect/issues)
-so it can be flipped to verified.
+are bundled (`lib/profiles/*.js`, one file per EF code). Two are
+verified against real hardware so far: the **Jura E8 (EF538)** and
+the **ENA 4 (EF1013)**, the latter via an external tester's GitHub
+issue rather than our own machine. Every other model's label is
+suffixed "— experimental, untested" in the pairing/settings UI
+(`lib/models.js`'s `verified` flag) — that's a literal statement, not
+a disclaimer for show. Found a bug, or got one working? [Open an
+issue](https://github.com/WoutvanderAa/homey-jura-connect/issues) so
+it can be flipped to verified.
 
 During pairing the model is auto-detected from the discovery reply's
 article number. If it isn't recognised, the manual picker's labels
@@ -121,12 +123,12 @@ physical E8:
 | `lib/crypto.js` | ✅ 88 test vectors, byte-identical to Python |
 | `lib/discovery.js` | ✅ Synthetic + live (finds real machines on the LAN) |
 | `lib/profile.js` (recipe encoder) | ✅ Byte-exact against Python, multiple models |
-| `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; only `EF538` cross-checked against real hardware |
-| `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8 |
+| `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; `EF538` and `EF1013` cross-checked against real hardware |
+| `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8, and against a real ENA 4 via an external tester |
 | Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Quirks found" below |
-| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms |
+| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms. ENA 4 (article 15501, EF1013): pairing, brewing (coffee + espresso), all five alarms — tested by Dijker via [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
 
-Not yet live-verified: any of the other 71 bundled profiles.
+Not yet live-verified: any of the other 70 bundled profiles.
 
 ## Quirks found during live testing
 
