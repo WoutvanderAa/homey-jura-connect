@@ -1,0 +1,8 @@
+<!-- Custom icon for the jura_maintenance_cleaning capability: a
+     simple sparkle/shine glyph, distinct from the water-drop already
+     used for alarm_water. Solid fill, white (see alarm_beans.svg's
+     comment for why: capability icons need a valid, comment-safe SVG,
+     not specifically a color choice). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path fill="#FFFFFF" d="M50 8 L64 36 L92 50 L64 64 L50 92 L36 64 L8 50 L36 36 Z"/>
+</svg>

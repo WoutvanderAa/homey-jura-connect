@@ -1,11 +1,15 @@
 <!-- Custom icon for the alarm_generic capability, replacing Homey's
      generic bell with the same cup glyph used for the app/driver icon,
-     so a machine that needs attention is recognisable at a glance. -->
+     so a machine that needs attention is recognisable at a glance.
+     White fill: capability icons turned out to be masked the same
+     luminance-based way as the app/driver icon (see assets/icon.svg's
+     comment): the original black fill rendered as an empty
+     placeholder on a real device, confirmed live. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <g transform="translate(0.2,2) scale(0.4)" fill="#000000">
+  <g transform="translate(0.2,2) scale(0.4)" fill="#FFFFFF">
     <rect x="77" y="108" width="76" height="66" rx="10"/>
-    <path d="M153 122 a19 19 0 0 1 0 40" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/>
-    <g stroke="#000000" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M153 122 a19 19 0 0 1 0 40" stroke="#FFFFFF" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" fill="none">
       <path d="M97 98 q8 -8 0 -16 q-8 -8 0 -16"/>
       <path d="M115 98 q8 -8 0 -16 q-8 -8 0 -16"/>
       <path d="M133 98 q8 -8 0 -16 q-8 -8 0 -16"/>

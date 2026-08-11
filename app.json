@@ -52,7 +52,8 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/maintenance_cleaning.svg"
     },
     "jura_maintenance_filter": {
       "type": "number",
@@ -74,7 +75,8 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/maintenance_filter.svg"
     },
     "jura_maintenance_descale": {
       "type": "number",
@@ -96,7 +98,8 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/maintenance_descale.svg"
     },
     "alarm_beans": {
       "type": "boolean",
@@ -110,7 +113,8 @@
       },
       "getable": true,
       "setable": false,
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/alarm_beans.svg"
     },
     "alarm_tray": {
       "type": "boolean",
@@ -124,7 +128,8 @@
       },
       "getable": true,
       "setable": false,
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/alarm_tray.svg"
     },
     "alarm_tray_missing": {
       "type": "boolean",
@@ -138,7 +143,8 @@
       },
       "getable": true,
       "setable": false,
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/alarm_tray_missing.svg"
     },
     "alarm_outlet_missing": {
       "type": "boolean",
@@ -152,7 +158,8 @@
       },
       "getable": true,
       "setable": false,
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/alarm_outlet_missing.svg"
     },
     "alarm_rear_cover_missing": {
       "type": "boolean",
@@ -166,7 +173,8 @@
       },
       "getable": true,
       "setable": false,
-      "insights": true
+      "insights": true,
+      "icon": "/drivers/jura-machine/assets/alarm_rear_cover_missing.svg"
     }
   },
   "drivers": [

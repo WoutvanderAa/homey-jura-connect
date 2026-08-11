@@ -2,9 +2,12 @@
      the tray isn't physically present at all, distinct from
      alarm_tray which means "present but full"). Same tray glyph as
      alarm_tray.svg but dashed, to read as "absent" rather than
-     "full". Pure stroke linework, survives the monochrome mask. -->
+     "full". White stroke, not black: capability icons are masked by
+     luminance the same way the app/driver icon is (see assets/icon.svg's
+     comment), and black rendered as an empty placeholder on a real
+     device. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <path d="M28 32 h44 l-6 46 a6 6 0 0 1 -6 6 h-20 a6 6 0 0 1 -6 -6 z"
-        fill="none" stroke="#000000" stroke-width="7" stroke-linejoin="round" stroke-dasharray="9 8"/>
-  <line x1="22" y1="32" x2="78" y2="32" stroke="#000000" stroke-width="7" stroke-linecap="round" stroke-dasharray="9 8"/>
+        fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" stroke-dasharray="9 8"/>
+  <line x1="22" y1="32" x2="78" y2="32" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-dasharray="9 8"/>
 </svg>

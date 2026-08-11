@@ -2,12 +2,15 @@
      removable rear access panel isn't attached. A panel outline with
      corner screw-holes to read as "cover/panel" rather than a plain
      box. Solid fill only, same monochrome-mask reasoning as the other
-     alarm_*.svg icons here. -->
+     alarm_*.svg icons here. White, not black: confirmed live that
+     black renders as an empty placeholder under Homey's
+     luminance-based masking (same issue as assets/icon.svg, see its
+     comment). -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <path d="M20 22 h60 a4 4 0 0 1 4 4 v48 a4 4 0 0 1 -4 4 h-60 a4 4 0 0 1 -4 -4 v-48 a4 4 0 0 1 4 -4 z
-            M20 30 h60 v40 h-60 z" fill-rule="evenodd" fill="#000000"/>
-  <circle cx="30" cy="32" r="4" fill="#000000"/>
-  <circle cx="70" cy="32" r="4" fill="#000000"/>
-  <circle cx="30" cy="68" r="4" fill="#000000"/>
-  <circle cx="70" cy="68" r="4" fill="#000000"/>
+            M20 30 h60 v40 h-60 z" fill-rule="evenodd" fill="#FFFFFF"/>
+  <circle cx="30" cy="32" r="4" fill="#FFFFFF"/>
+  <circle cx="70" cy="32" r="4" fill="#FFFFFF"/>
+  <circle cx="30" cy="68" r="4" fill="#FFFFFF"/>
+  <circle cx="70" cy="68" r="4" fill="#FFFFFF"/>
 </svg>

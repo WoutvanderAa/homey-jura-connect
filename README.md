@@ -178,6 +178,33 @@ Network/hardware realities, not bugs:
   anything asks. There's no faster read command to fall back on
   (`@HU?` is the only one, in this app and upstream), so this isn't
   fixable from the client side.
+- **Two unrelated icon bugs, both invisible until checked on a real
+  device** (`homey app validate` catches neither):
+  - The app icon's very first version was outline/stroke-only per a
+    literal reading of Homey's "no filled illustrations" guideline
+    text, and rendered as a blank circle live. Homey masks the app
+    icon via CSS `mask-image`, which is luminance-based, not
+    alpha-based — a mid-tone fill colour is nearly invisible against a
+    dark `brandColor` backdrop regardless of how opaque it is. Fixed by
+    using a filled shape (white, maximum luminance) with the bean's
+    crease as a genuine cut-out (`fill-rule="evenodd"` compound path)
+    instead of a stroke overlay.
+  - Separately, every capability icon (`alarm_*.svg`) rendered as an
+    empty/missing placeholder regardless of fill colour, for a
+    completely different reason: a literal `--` inside an SVG
+    `<!-- comment -->` body is invalid XML, and it silently broke every
+    icon that had one — which, after several rounds of "fix the
+    colour" guesses, turned out to be all of them (this exact mistake
+    — a `--` inside a comment — had already happened twice earlier in
+    this same project for the app/driver icon; watch for it). Also
+    learned along the way: a capability's `icon` needs to be set in its
+    **`app.json` definition** (`"icon": "/path/to.svg"` inside the
+    `capabilities` block), not only via runtime
+    `setCapabilityOptions()` — Homey appears to snapshot a capability's
+    icon at the moment it's first added to a device, so already-paired
+    devices need a one-time forced `removeCapability`/`addCapability`
+    (see `device.js`'s `onInit`) to pick up an icon added after the
+    fact.
 
 ## Setup
 
@@ -223,9 +250,10 @@ drivers/jura-machine/driver.js       — custom pair flow (discovery + model det
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/alarm_*.svg — custom capability icons
+drivers/jura-machine/assets/maintenance_*.svg — maintenance-percent capability icons
 drivers/jura-machine/assets/images/{large,small}.png — driver image, a real photo of the E8
 drivers/jura-machine/assets/machine.svg — old illustrated driver-image source, kept for reference only
-assets/icon.svg                      — app icon source: outline coffee bean, transparent background
+assets/icon.svg                      — app icon source: filled coffee bean with a cut-out crease, transparent background
 assets/images/{large,small}.png      — app store banner, a real photo (credited in "Attribution")
 assets/banner.svg                    — old illustrated banner source, kept for reference only
 README.txt / README.nl.txt           — plain-text App Store listing blurb (not this file)

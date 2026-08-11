@@ -1,8 +1,16 @@
-<!-- Custom icon for the alarm_beans capability: a single coffee
-     bean silhouette, same shape as assets/banner.svg's beans. No
-     crease detail: Homey renders capability icons as a monochrome
-     mask, so a stroke drawn over a fill (expecting a color contrast)
-     would disappear once everything becomes one color. -->
+<!-- Custom icon for the alarm_beans capability: a coffee bean
+     silhouette with a genuinely cut-out crease (fill-rule="evenodd"
+     compound path, same technique as assets/icon.svg), scaled down
+     from that file's bean shape to this file's 0-100 viewBox. The
+     earlier plain-ellipse version (no crease) wasn't a masking
+     limitation as first assumed: every icon in this folder was
+     invisible live because of a stray literal double hyphen in these
+     very comments breaking the SVG's XML, not the icon content.
+     Fixed across the board; this file just also got the
+     upgrade to a properly bean-shaped icon while at it. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <ellipse cx="50" cy="50" rx="36" ry="23" transform="rotate(-25 50 50)" fill="#000000"/>
+  <path fill-rule="evenodd" fill="#FFFFFF" d="
+    M50 16 C72 16 82 34 82 50 C82 66 72 84 50 84 C28 84 18 66 18 50 C18 34 28 16 50 16 Z
+    M48 18 C42 30 56 38 50 50 C44 62 58 70 48 82 L52 82 C62 70 48 62 54 50 C60 38 46 30 52 18 Z
+  "/>
 </svg>

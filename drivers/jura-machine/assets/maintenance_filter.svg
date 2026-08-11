@@ -1,0 +1,8 @@
+<!-- Custom icon for the jura_maintenance_filter capability: a funnel
+     shape with two horizontal mesh lines, reading as a filter
+     cartridge. Solid fill plus two short strokes, white. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path fill="#FFFFFF" d="M20 20 L80 20 L58 62 L58 85 L42 85 L42 62 Z"/>
+  <line x1="28" y1="35" x2="72" y2="35" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <line x1="35" y1="48" x2="65" y2="48" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+</svg>

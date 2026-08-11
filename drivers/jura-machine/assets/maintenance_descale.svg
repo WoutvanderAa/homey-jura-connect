@@ -1,0 +1,9 @@
+<!-- Custom icon for the jura_maintenance_descale capability: a
+     cluster of three crystal/mineral-deposit diamonds, reading as
+     limescale rather than reusing the water-drop already on
+     alarm_water. Solid fill, white. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path fill="#FFFFFF" d="M50 28 L67 50 L50 72 L33 50 Z"/>
+  <path fill="#FFFFFF" d="M74 20 L82 31 L74 42 L66 31 Z"/>
+  <path fill="#FFFFFF" d="M26 58 L34 69 L26 80 L18 69 Z"/>
+</svg>

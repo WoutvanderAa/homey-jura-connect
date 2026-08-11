@@ -3,9 +3,11 @@
      socket. outlet_missing means it isn't attached, not "unplugged".
      Solid fill (no stroke-over-fill contrast tricks), matching
      alarm_beans.svg's note that Homey renders these as a monochrome
-     mask. -->
+     mask. White, not black: confirmed live that black renders as an
+     empty placeholder under Homey's luminance-based masking (same
+     issue as assets/icon.svg, see its comment). -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <path d="M30 20 h40 l-6 34 a10 10 0 0 1 -10 8 h-8 a10 10 0 0 1 -10 -8 z" fill="#000000"/>
-  <ellipse cx="42" cy="78" rx="4" ry="6" fill="#000000"/>
-  <ellipse cx="58" cy="86" rx="3" ry="5" fill="#000000"/>
+  <path d="M30 20 h40 l-6 34 a10 10 0 0 1 -10 8 h-8 a10 10 0 0 1 -10 -8 z" fill="#FFFFFF"/>
+  <ellipse cx="42" cy="78" rx="4" ry="6" fill="#FFFFFF"/>
+  <ellipse cx="58" cy="86" rx="3" ry="5" fill="#FFFFFF"/>
 </svg>
