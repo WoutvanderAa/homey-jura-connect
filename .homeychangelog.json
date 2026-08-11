@@ -50,5 +50,8 @@
   },
   "0.4.0": {
     "en": "Added alarm_outlet_missing and alarm_rear_cover_missing capabilities with flow triggers/conditions, covering ~96-97% of bundled profiles on the same survey-then-add pattern as the existing tray/water/beans alarms."
+  },
+  "0.4.1": {
+    "en": "Fixed all capability icons rendering as empty/missing placeholders — a stray double-hyphen inside the SVG comments broke the XML parsing. Also added icons for the three maintenance-percent capabilities and gave the beans icon a proper crease."
   }
 }
