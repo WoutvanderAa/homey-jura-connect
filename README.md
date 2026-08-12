@@ -19,12 +19,11 @@ without a working app ever showing up.
 
 ## Try it
 
-Install the Test build, no special permission needed:
-**https://homey.app/a/nl.brokebyte.juraconnect/test/**
-(App Store listing is pending certification — see "Next steps".)
+Live on the Homey App Store, certified, no special permission needed:
+**https://homey.app/a/nl.brokebyte.juraconnect/**
 
-Got a Jura with WiFi Connect that's a different model than the E8?
-Pair it and let us know how it went via
+Got a Jura with WiFi Connect that's a different model than the E8 or
+ENA 4? Pair it and let us know how it went via
 [GitHub issues](https://github.com/WoutvanderAa/homey-jura-connect/issues)
 — that's how untested profiles get flipped to verified for the next
 person.
@@ -210,7 +209,7 @@ Network/hardware realities, not bugs:
 
 For running the app from source (contributing, adding a model, or
 just poking around) — regular users don't need any of this, just the
-Test link in "Try it" above.
+App Store link in "Try it" above.
 
 1. The **WiFi Connect module** must already be paired to your network
    via the J.O.E. app.
@@ -233,10 +232,6 @@ Test link in "Try it" above.
   (`@TR:32`) exist in the protocol but aren't ported — the percent
   bank (`@TG:C0`) already covers the main "do I need to
   clean/descale/refill soon" use case.
-- **Resubmit for Homey App Store certification.** The first submission
-  was rejected on four points (description, app icon, driver image,
-  app banner) — all four are now fixed; see git history for the
-  before/after if a second rejection needs comparing against the first.
 
 ## Structure
 
