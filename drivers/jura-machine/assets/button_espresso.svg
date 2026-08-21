@@ -1,0 +1,12 @@
+<!-- Custom icon for the brew_espresso_button capability, restyled to
+     match the user-supplied line-icon reference pack: same outline
+     cup and handle as button_coffee.svg, just short and squat instead
+     of tall, matching that pack's own smallest cup on the left of its
+     size progression. Dropped the earlier crema-swirl attempt entirely
+     in favour of this simpler, pack-consistent approach. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M28 50 h44 l-3 22 a5 5 0 0 1 -5 4 h-30 a5 5 0 0 1 -5 -4 z"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M72 55 a9 9 0 0 1 0 18"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+</svg>

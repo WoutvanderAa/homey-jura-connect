@@ -1,0 +1,12 @@
+<!-- Custom icon for the brew_coffee_button capability, restyled to
+     match the user-supplied line-icon reference pack: outline cups
+     (stroke only, fill none), same simple loop handle on both, the
+     only difference between this file and button_espresso.svg being
+     height/proportion (tall mug here vs a short, squat cup there),
+     same as that pack's own progression from small to tall cups. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M28 22 h44 l-4 50 a6 6 0 0 1 -6 6 h-28 a6 6 0 0 1 -6 -6 z"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M72 35 a14 14 0 0 1 0 28"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+</svg>

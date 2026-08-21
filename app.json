@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -175,6 +175,36 @@
       "setable": false,
       "insights": true,
       "icon": "/drivers/jura-machine/assets/alarm_rear_cover_missing.svg"
+    },
+    "brew_coffee_button": {
+      "type": "boolean",
+      "title": {
+        "en": "Brew coffee",
+        "nl": "Zet koffie"
+      },
+      "desc": {
+        "en": "Starts brewing a regular coffee immediately. No remote abort once started -- make sure a cup is in place.",
+        "nl": "Start direct het zetten van een gewone koffie. Geen externe stop mogelijk zodra gestart -- zorg dat er een kopje onder staat."
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "/drivers/jura-machine/assets/button_coffee.svg"
+    },
+    "brew_espresso_button": {
+      "type": "boolean",
+      "title": {
+        "en": "Brew espresso",
+        "nl": "Zet espresso"
+      },
+      "desc": {
+        "en": "Starts brewing an espresso immediately. No remote abort once started -- make sure a cup is in place.",
+        "nl": "Start direct het zetten van een espresso. Geen externe stop mogelijk zodra gestart -- zorg dat er een kopje onder staat."
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "/drivers/jura-machine/assets/button_espresso.svg"
     }
   },
   "drivers": [
@@ -196,7 +226,9 @@
         "alarm_rear_cover_missing",
         "jura_maintenance_cleaning",
         "jura_maintenance_filter",
-        "jura_maintenance_descale"
+        "jura_maintenance_descale",
+        "brew_coffee_button",
+        "brew_espresso_button"
       ],
       "images": {
         "small": "/drivers/jura-machine/assets/images/small.png",
@@ -749,6 +781,45 @@
                   }
                 }
               ]
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Brew amounts",
+            "nl": "Zethoeveelheden"
+          },
+          "children": [
+            {
+              "id": "coffee_ml",
+              "type": "number",
+              "label": {
+                "en": "Coffee (ml)",
+                "nl": "Koffie (ml)"
+              },
+              "hint": {
+                "en": "Overrides the built-in water amount for the Coffee button and flow action. Leave at 0 to use the machine's own default instead.",
+                "nl": "Overschrijft de ingebouwde hoeveelheid water voor de Koffie-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf."
+              },
+              "value": 0,
+              "min": 0,
+              "max": 300
+            },
+            {
+              "id": "espresso_ml",
+              "type": "number",
+              "label": {
+                "en": "Espresso (ml)",
+                "nl": "Espresso (ml)"
+              },
+              "hint": {
+                "en": "Overrides the built-in water amount for the Espresso button and flow action. Leave at 0 to use the machine's own default instead.",
+                "nl": "Overschrijft de ingebouwde hoeveelheid water voor de Espresso-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf."
+              },
+              "value": 0,
+              "min": 0,
+              "max": 300
             }
           ]
         }

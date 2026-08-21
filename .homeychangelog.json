@@ -53,5 +53,9 @@
   },
   "0.4.1": {
     "en": "Fixed all capability icons rendering as empty/missing placeholders — a stray double-hyphen inside the SVG comments broke the XML parsing. Also added icons for the three maintenance-percent capabilities and gave the beans icon a proper crease."
+  },
+  "0.5.0": {
+    "en": "Fixed brew() sometimes reporting a genuinely successful brew as failed right after the machine woke from energy-safe mode. Added quick-access Coffee/Espresso buttons on the device tile, with optional ml overrides in device settings.",
+    "nl": "Fout gefixt waarbij brew() een geslaagde bereiding soms ten onrechte als mislukt meldde, vlak nadat de machine wakker werd uit de energiebesparende stand. Snelkoppelingen Koffie/Espresso toegevoegd op de apparaattegel, met optionele ml-instellingen."
   }
 }

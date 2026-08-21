@@ -70,6 +70,8 @@ class JuraMachineDevice extends Device {
       'jura_maintenance_cleaning',
       'jura_maintenance_filter',
       'jura_maintenance_descale',
+      'brew_coffee_button',
+      'brew_espresso_button',
     ]) {
       if (!this.hasCapability(cap)) await this.addCapability(cap).catch(this.error);
     }
@@ -119,6 +121,17 @@ class JuraMachineDevice extends Device {
             'This machine cannot be switched on remotely — press the power button on the machine itself.'
         );
       }
+    });
+
+    // Quick-access buttons for the only two products every bundled
+    // profile has (see lib/profiles/README.md's product-name survey) --
+    // brew_product (the flow action) stays the flexible, per-device
+    // route for anything else a specific machine's profile supports.
+    this.registerCapabilityListener('brew_coffee_button', async () => {
+      await this.brew('coffee');
+    });
+    this.registerCapabilityListener('brew_espresso_button', async () => {
+      await this.brew('espresso');
     });
 
     await this._startPolling();
@@ -269,13 +282,51 @@ class JuraMachineDevice extends Device {
    * exact product names available on this machine's profile.
    * DESTRUCTIVE: dispenses immediately, no remote abort. Make sure a
    * cup is in place before calling this.
+   *
+   * There's no protocol command to read a machine's own personalised
+   * recipe settings (the on-machine amount you dialled in yourself) --
+   * @TP: always requires a complete explicit recipe, so without an
+   * override every brew silently falls back to the bundled profile's
+   * factory-default water amount, which won't match what you set on
+   * the machine itself. The coffee_ml/espresso_ml device settings are
+   * the workaround: filled in, they override the default here for
+   * both the quick buttons and this same method's flow-action route.
    */
   async brew(productName, overrides = {}) {
+    const finalOverrides = { ...overrides };
+    if (!('water_amount' in finalOverrides)) {
+      const settings = this.getSettings();
+      if (productName === 'coffee' && settings.coffee_ml > 0) {
+        finalOverrides.water_amount = settings.coffee_ml;
+      } else if (productName === 'espresso' && settings.espresso_ml > 0) {
+        finalOverrides.water_amount = settings.espresso_ml;
+      }
+    }
     await this._connectIfNeeded();
-    const reply = await this._client.brew(productName, overrides, { retry: true, timeoutMs: 8000 });
+    const reply = await this._client.brew(productName, finalOverrides, { retry: true, timeoutMs: 8000 });
     const { isBrewAccept } = require('../../lib/juraClient');
     if (!isBrewAccept(reply)) {
-      throw new Error(`Machine did not accept the brew command (reply: ${reply})`);
+      // Confirmed live (E8 and E4, so not model-specific): a machine
+      // waking from energy-safe can reply to @TP: with something that
+      // isn't a @tp:-prefixed frame at all, even after the wake-up
+      // retry above -- yet still genuinely starts brewing a moment
+      // later. Rather than hard-coding what every model's wake-up
+      // reply looks like (unmaintainable across 72 profiles, and we
+      // only have hard data for 2), fall back to asking the machine
+      // itself: if it's actively heating up, the brew clearly did
+      // start, whatever that reply was.
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      let heatingUp = false;
+      try {
+        const status = await this._client.readStatus(6000);
+        heatingUp = status.activeAlerts.includes('heating_up');
+      } catch (err) {
+        this.error('Post-brew status check failed (non-fatal):', err.message);
+      }
+      if (!heatingUp) {
+        throw new Error(`Machine did not accept the brew command (reply: ${reply})`);
+      }
+      this.log(`Brew accepted despite an unrecognised reply (${reply}) -- machine is heating up`);
     }
     return reply;
   }

@@ -81,7 +81,8 @@ needs to change, only `lib/models.js` and a new profile file.
 | `alarm_outlet_missing` | `outlet_missing` | The removable coffee-dispensing spout isn't attached. ~97% profile coverage, not 100% — see below. |
 | `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). |
-| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile. |
+| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see "Capabilities" notes below). Same destructive, no-abort behaviour as any other brew call. Water amount can be overridden via the device's own `coffee_ml`/`espresso_ml` settings (0 = use the machine's built-in default). |
+| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). |
 
 The five alert names behind the first four alarms above (`fill_water`,
 `no_beans`, `insert_tray`, `empty_tray`, `empty_grounds`) were picked
@@ -110,6 +111,20 @@ Learned this the hard way after assuming the prefix alone was enough.
 Maintenance-percent direction is confirmed via
 [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
 own docs ("percent-to-next-service" indicators), not guessed.
+
+**Why only 2 quick buttons, not a full J.O.E.-style product menu on the
+device tile:** checked this properly before deciding. Coverage falls
+off a cliff past coffee/espresso (cappuccino 61/72, latte macchiato
+59/72, then a long tail of 60+ products each on a handful of models),
+and the biggest single profile has 31 products — nowhere near
+button-tile territory. More fundamentally, Homey's capability enum
+values are fixed per app manifest, identical for every device using
+that capability; there's no per-device dynamic value list at the
+capability level the way flow-card autocomplete arguments have
+(`registerArgumentAutocompleteListener`, which `brew_product` already
+uses). A true dynamic per-model menu isn't buildable as a device-tile
+capability — `brew_product`'s flow-action autocomplete already *is*
+Homey's equivalent of that, just one level up from the tile itself.
 
 ## What's verified
 
@@ -204,6 +219,32 @@ Network/hardware realities, not bugs:
     devices need a one-time forced `removeCapability`/`addCapability`
     (see `device.js`'s `onInit`) to pick up an icon added after the
     fact.
+- **`brew()` could report a genuinely successful brew as a failure**
+  (`Machine did not accept the brew command (reply: @hu:800)`),
+  confirmed on both a real E8 and a real E4 — so not model-specific.
+  First suspected a poll cycle and the brew racing for the same reply
+  on one connection, so `request()`/`connect()` were serialized
+  through a per-client queue (`_enqueue` in `juraClient.js`) — a real
+  latent bug worth having fixed regardless, but it turned out *not* to
+  be the cause here: the exact same `@hu:800` reply came back again
+  after that fix, identically, which a genuine race wouldn't reproduce
+  so precisely. The actual pattern: it happened right as the machine
+  woke from `energy_safe`, matching the code's existing "first `@TP:`
+  just wakes the machine, resend" handling — except the retry fired
+  instantly, before the wake-up had actually finished, so the second
+  attempt got the same not-yet-ready reply too. Fixed two ways: a 3s
+  pause before that retry, and — since there's no way to know what
+  every one of the 72 profiles' wake-up reply looks like, or catalogue
+  it as new ones turn up — a fallback in `device.js` that checks
+  whether the machine is actually `heating_up` before giving up,
+  regardless of what the reply text says.
+- **No protocol command reads a machine's own personalised recipe
+  settings** — `@TP:` always requires a complete explicit recipe, so
+  without an override, every brew silently uses the bundled profile's
+  factory-default water amount, not whatever you've dialled in on the
+  machine itself. There's no fixing this from the client side either;
+  the device's own `coffee_ml`/`espresso_ml` settings are the
+  workaround, not a real fix.
 
 ## Setup
 
