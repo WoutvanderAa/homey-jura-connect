@@ -81,7 +81,7 @@ needs to change, only `lib/models.js` and a new profile file.
 | `alarm_outlet_missing` | `outlet_missing` | The removable coffee-dispensing spout isn't attached. ~97% profile coverage, not 100% — see below. |
 | `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). |
-| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see "Capabilities" notes below). Same destructive, no-abort behaviour as any other brew call. Water amount can be overridden via the device's own `coffee_ml`/`espresso_ml` settings (0 = use the machine's built-in default). |
+| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount can be overridden via the device's own `coffee_ml`/`espresso_ml` settings (0 = use the machine's built-in default). |
 | `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). |
 
 The five alert names behind the first four alarms above (`fill_water`,
@@ -139,19 +139,25 @@ physical E8:
 | `lib/profile.js` (recipe encoder) | ✅ Byte-exact against Python, multiple models |
 | `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; `EF538` and `EF1013` cross-checked against real hardware |
 | `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8, and against a real ENA 4 via an external tester |
-| Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Quirks found" below |
+| Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Bugs fixed, and known limitations" below |
 | Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms. ENA 4 (article 15501, EF1013): pairing, brewing (coffee + espresso), all five alarms — tested by Dijker via [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
 
 Not yet live-verified: any of the other 70 bundled profiles.
 
-## Quirks found during live testing
+## Bugs fixed, and known limitations
 
-Three Homey pair-flow bugs, only visible against a real Homey + machine:
+The first group below is history — real bugs, all already fixed, kept
+here as a record of what to watch for (some of these mistakes have a
+habit of repeating). The second group is still true today: hardware
+and protocol realities that no code change here can fix.
 
-- **Race condition**: `start.html` called `Homey.showView('connect')`
-  before the `select_machine` emit was acknowledged, sometimes loading
-  the next view with an empty selection. Fixed by navigating inside
-  the emit's `.then()`.
+**Bugs found against real hardware, now fixed** (`homey app validate`
+caught none of these — every one only showed up live):
+
+- **Pair-flow race condition**: `start.html` called
+  `Homey.showView('connect')` before the `select_machine` emit was
+  acknowledged, sometimes loading the next view with an empty
+  selection. Fixed by navigating inside the emit's `.then()`.
 - **Redundant system "Next" button**: `app.json`'s `start` pair view
   had `navigation.next` set, which made Homey render its own button
   that bypassed the custom row-click handler entirely. Removed.
@@ -159,41 +165,13 @@ Three Homey pair-flow bugs, only visible against a real Homey + machine:
   CLI/runtime (v4.4.1, software 13.4.0) — threw synchronously before
   the click handler ever reached `Homey.emit()`. Wrapped in a `typeof`
   check.
-
-Network/hardware realities, not bugs:
-
-- **UDP broadcast discovery doesn't cross VLANs**, even with a
-  firewall allow rule (L3 routing behaviour, not a policy setting).
-  `start.html` has a manual IP-entry fallback for cross-VLAN setups.
-- **The machine goes fully unreachable after its auto-off timer** —
-  the WiFi module powers down too. `device.js` shows "Machine appears
-  to be off or unreachable" instead of a raw socket error, but there's
-  no way to remotely wake it.
 - Before all 72 models were bundled, our own live E8 (article 15336,
   hwId `EF538M V01.05`) was paired manually as `EF533V2` since `EF538`
   wasn't in the list yet — it brewed fine, but `EF538` is the actually
   correct profile. If you paired before this fix, check your device
   settings against the hwId shown at pairing time.
-- **The on-machine pairing confirmation isn't always an "OK" button** —
-  the E8 has one, but a real ENA 4 confirms via its bean button
-  instead. The pairing prompt text used to say "press OK", which was
-  actively wrong for that model; it's now model-agnostic ("confirm on
-  the machine's display").
-- **Alarms (tray/water/etc.) can lag a physical change by 3-4
-  minutes**, confirmed on both an E8 and an ENA 4 — reported as a bug
-  at first, but this is not this app's polling: a full, restart-free
-  test showed `@HU?` replies coming back exactly every 10s the entire
-  time, just with a stale-but-honest value until the machine's own
-  status word caught up. `jura_connect`'s own simulator documents
-  "periodic unsolicited `@TF:` status broadcasts" as a real protocol
-  feature, and `jura-connect-hass`'s README notes "JURA dongles sleep
-  regularly" — so the machine/dongle appears to refresh its internal
-  status on its own multi-minute cycle, independent of how often
-  anything asks. There's no faster read command to fall back on
-  (`@HU?` is the only one, in this app and upstream), so this isn't
-  fixable from the client side.
 - **Two unrelated icon bugs, both invisible until checked on a real
-  device** (`homey app validate` catches neither):
+  device**:
   - The app icon's very first version was outline/stroke-only per a
     literal reading of Homey's "no filled illustrations" guideline
     text, and rendered as a blank circle live. Homey masks the app
@@ -238,6 +216,32 @@ Network/hardware realities, not bugs:
   it as new ones turn up — a fallback in `device.js` that checks
   whether the machine is actually `heating_up` before giving up,
   regardless of what the reply text says.
+
+**Still true today — hardware/network/protocol realities, not bugs:**
+
+- **UDP broadcast discovery doesn't cross VLANs**, even with a
+  firewall allow rule (L3 routing behaviour, not a policy setting).
+  `start.html` has a manual IP-entry fallback for cross-VLAN setups.
+- **The machine goes fully unreachable after its auto-off timer** —
+  the WiFi module powers down too. `device.js` shows "Machine appears
+  to be off or unreachable" instead of a raw socket error, but there's
+  no way to remotely wake it.
+- **The on-machine pairing confirmation isn't always an "OK" button** —
+  the E8 has one, but a real ENA 4 confirms via its bean button
+  instead. The pairing prompt text is model-agnostic ("confirm on the
+  machine's display") to match.
+- **Alarms (tray/water/etc.) can lag a physical change by 3-4
+  minutes**, confirmed on both an E8 and an ENA 4 — a full, restart-free
+  test showed `@HU?` replies coming back exactly every 10s the entire
+  time, just with a stale-but-honest value until the machine's own
+  status word caught up. `jura_connect`'s own simulator documents
+  "periodic unsolicited `@TF:` status broadcasts" as a real protocol
+  feature, and `jura-connect-hass`'s README notes "JURA dongles sleep
+  regularly" — so the machine/dongle appears to refresh its internal
+  status on its own multi-minute cycle, independent of how often
+  anything asks. There's no faster read command to fall back on
+  (`@HU?` is the only one, in this app and upstream), so this isn't
+  fixable from the client side.
 - **No protocol command reads a machine's own personalised recipe
   settings** — `@TP:` always requires a complete explicit recipe, so
   without an override, every brew silently uses the bundled profile's
@@ -289,8 +293,10 @@ lib/juraClient.js                    — handshake/pair, status, brew, maintenan
 drivers/jura-machine/driver.js       — custom pair flow (discovery + model detection/picker)
 drivers/jura-machine/device.js       — polling, capabilities, brew method
 drivers/jura-machine/pair/*.html     — pair UI
+drivers/jura-machine/assets/icon.svg — driver icon (flow-card/capability-list icon-inner elements)
 drivers/jura-machine/assets/alarm_*.svg — custom capability icons
 drivers/jura-machine/assets/maintenance_*.svg — maintenance-percent capability icons
+drivers/jura-machine/assets/button_*.svg — brew_coffee_button/brew_espresso_button icons
 drivers/jura-machine/assets/images/{large,small}.png — driver image, a real photo of the E8
 drivers/jura-machine/assets/machine.svg — old illustrated driver-image source, kept for reference only
 assets/icon.svg                      — app icon source: filled coffee bean with a cut-out crease, transparent background

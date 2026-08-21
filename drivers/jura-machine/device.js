@@ -124,7 +124,7 @@ class JuraMachineDevice extends Device {
     });
 
     // Quick-access buttons for the only two products every bundled
-    // profile has (see lib/profiles/README.md's product-name survey) --
+    // profile has (see README.md's "Why only 2 quick buttons" note) --
     // brew_product (the flow action) stays the flexible, per-device
     // route for anything else a specific machine's profile supports.
     this.registerCapabilityListener('brew_coffee_button', async () => {
