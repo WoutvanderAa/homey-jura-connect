@@ -124,9 +124,11 @@ class JuraMachineDevice extends Device {
     }).catch(this.error);
 
     this._client = null;
+    this._connectPromise = null;
     this._pollTimer = null;
     this._pollCount = 0;
     this._pollFailCount = 0;
+    this._polling = false;
 
     this.registerCapabilityListener('onoff', async (value) => {
       // Fully read-only in both directions. @AN:02 (standby) is a
@@ -198,8 +200,33 @@ class JuraMachineDevice extends Device {
     });
   }
 
+  /**
+   * Connect if there's no live connection yet. Concurrent callers (the
+   * poll timer and a flow-triggered brew() can genuinely overlap --
+   * setInterval doesn't wait for the previous _poll() to finish, and
+   * brew() calls this independently) share the one in-flight attempt
+   * via _connectPromise instead of each racing to open their own
+   * socket. Without this, two callers that both see "not connected" at
+   * the same moment would each build a separate JuraClient and connect
+   * separately; whichever finished last would win the this._client
+   * assignment and the other's socket would be silently orphaned --
+   * never closed, just left open. The Jura WiFi dongle likely only
+   * accepts one connection at a time, so a leaked one like that would
+   * make every subsequent connection attempt fail until the machine's
+   * own idle-connection timeout eventually cleans it up.
+   */
   async _connectIfNeeded() {
     if (this._client && this._client.connected) return;
+    if (this._connectPromise) return this._connectPromise;
+    this._connectPromise = this._doConnect();
+    try {
+      await this._connectPromise;
+    } finally {
+      this._connectPromise = null;
+    }
+  }
+
+  async _doConnect() {
     this._client = this._buildClient();
     const result = await this._client.connect(15000);
     if (result.state !== 'CORRECT') {
@@ -231,6 +258,13 @@ class JuraMachineDevice extends Device {
   }
 
   async _poll() {
+    // setInterval fires on a fixed cadence regardless of whether the
+    // previous _poll() finished -- a slow cycle (reconnect + an 8s
+    // readStatus timeout can already exceed POLL_INTERVAL_MS on its
+    // own) could otherwise let two calls run at once. Skip rather than
+    // pile up; the next tick picks up where this one left off anyway.
+    if (this._polling) return;
+    this._polling = true;
     try {
       await this._connectIfNeeded();
       const status = await this._client.readStatus(8000);
@@ -303,6 +337,8 @@ class JuraMachineDevice extends Device {
         await this._client.close().catch(() => {});
         this._client = null;
       }
+    } finally {
+      this._polling = false;
     }
   }
 
