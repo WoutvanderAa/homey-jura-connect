@@ -18,6 +18,20 @@ const MAINTENANCE_POLL_EVERY = 30;
 // hits its auto-off timer -- surface that plainly instead of a raw
 // socket error code.
 const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH']);
+
+// Alert names seen around an active brew cycle on the E8's own alert
+// table (lib/profiles/EF538.js) -- used by brew()'s post-reply fallback
+// below. heating_up alone missed a second confirmed-live false-negative
+// (reply @TB, coffee genuinely brewed) where the machine was already at
+// temperature and so never went through a heating_up phase at all.
+const BREW_IN_PROGRESS_ALERTS = [
+  'heating_up',
+  'coffee_ready',
+  'coffee_rinsing',
+  'please_wait',
+  'enjoy_product',
+  'system_filling',
+];
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
     return 'Machine appears to be off or unreachable on the network.';
@@ -306,27 +320,33 @@ class JuraMachineDevice extends Device {
     const reply = await this._client.brew(productName, finalOverrides, { retry: true, timeoutMs: 8000 });
     const { isBrewAccept } = require('../../lib/juraClient');
     if (!isBrewAccept(reply)) {
-      // Confirmed live (E8 and E4, so not model-specific): a machine
-      // waking from energy-safe can reply to @TP: with something that
-      // isn't a @tp:-prefixed frame at all, even after the wake-up
-      // retry above -- yet still genuinely starts brewing a moment
-      // later. Rather than hard-coding what every model's wake-up
-      // reply looks like (unmaintainable across 72 profiles, and we
-      // only have hard data for 2), fall back to asking the machine
-      // itself: if it's actively heating up, the brew clearly did
-      // start, whatever that reply was.
+      // Confirmed live on a real E8, twice now, with two different
+      // unrecognised replies (@hu:800, then @TB) both times a genuine
+      // successful brew: the machine doesn't always confirm @TP: with a
+      // @tp:-prefixed frame. Rather than loosening isBrewAccept itself
+      // (risky -- we don't actually know every rejection reply looks
+      // like @tp:00 either, on this or the other 71 profiles, so that
+      // could turn a real rejection into a silent false "success"),
+      // fall back to asking the machine itself whether anything is
+      // happening. heating_up alone missed the @TB case: the machine
+      // was already at temperature, so it never went through a
+      // heating_up phase for that brew at all. Check the fuller set of
+      // brew-cycle-adjacent alerts instead -- still a pure add-on that
+      // can only *suppress* a false error, never manufacture a false
+      // success, and still a no-op on profiles that don't define these
+      // alert names (same as any other alarm a machine can't report).
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      let heatingUp = false;
+      let matchedAlert = null;
       try {
         const status = await this._client.readStatus(6000);
-        heatingUp = status.activeAlerts.includes('heating_up');
+        matchedAlert = BREW_IN_PROGRESS_ALERTS.find((a) => status.activeAlerts.includes(a)) || null;
       } catch (err) {
         this.error('Post-brew status check failed (non-fatal):', err.message);
       }
-      if (!heatingUp) {
+      if (!matchedAlert) {
         throw new Error(`Machine did not accept the brew command (reply: ${reply})`);
       }
-      this.log(`Brew accepted despite an unrecognised reply (${reply}) -- machine is heating up`);
+      this.log(`Brew accepted despite an unrecognised reply (${reply}) -- machine shows "${matchedAlert}"`);
     }
     return reply;
   }
