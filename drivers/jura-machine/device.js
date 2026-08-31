@@ -43,6 +43,15 @@ const BREW_IN_PROGRESS_ALERTS = [
   'enjoy_product',
   'system_filling',
 ];
+
+// Confirmed live: even the widened alert list above can still miss a
+// single point-in-time check -- an espresso needing a real cold-start
+// heat-up can take longer than one snapshot 3s after the reply covers,
+// so the brew-in-progress state may not have started yet (or may have
+// already passed) at the moment we happen to look. Check a few times
+// spread out instead of once, stopping as soon as any of them matches.
+const BREW_STATUS_CHECK_ATTEMPTS = 3;
+const BREW_STATUS_CHECK_INTERVAL_MS = 3000;
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
     return 'Machine appears to be off or unreachable on the network.';
@@ -389,13 +398,21 @@ class JuraMachineDevice extends Device {
       // can only *suppress* a false error, never manufacture a false
       // success, and still a no-op on profiles that don't define these
       // alert names (same as any other alarm a machine can't report).
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // A single snapshot can still miss the window (confirmed live: an
+      // espresso needing a real cold-start heat-up outlasted one check),
+      // so try a few times spread out rather than looking just once.
       let matchedAlert = null;
-      try {
-        const status = await this._client.readStatus(6000);
-        matchedAlert = BREW_IN_PROGRESS_ALERTS.find((a) => status.activeAlerts.includes(a)) || null;
-      } catch (err) {
-        this.error('Post-brew status check failed (non-fatal):', err.message);
+      for (let attempt = 1; attempt <= BREW_STATUS_CHECK_ATTEMPTS && !matchedAlert; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, BREW_STATUS_CHECK_INTERVAL_MS));
+        try {
+          const status = await this._client.readStatus(6000);
+          matchedAlert = BREW_IN_PROGRESS_ALERTS.find((a) => status.activeAlerts.includes(a)) || null;
+        } catch (err) {
+          this.error(
+            `Post-brew status check ${attempt}/${BREW_STATUS_CHECK_ATTEMPTS} failed (non-fatal):`,
+            err.message
+          );
+        }
       }
       if (!matchedAlert) {
         throw new Error(`Machine did not accept the brew command (reply: ${reply})`);
