@@ -19,6 +19,17 @@ const MAINTENANCE_POLL_EVERY = 30;
 // socket error code.
 const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH']);
 
+// Confirmed live: the machine can become briefly unreachable for
+// several polls in a row while it's physically brewing (grinding/
+// pumping/heating draws enough power to make its own WiFi module
+// unresponsive for a bit) -- reproduced with no relation to anything
+// this app sends, i.e. not something fixable from the client side.
+// Only flip to unavailable after this many *consecutive* failed polls,
+// so one such hiccup doesn't flicker the device tile every time
+// something brews. A real outage (powered off, out of range, auto-off
+// timer) still shows unavailable soon enough -- POLL_INTERVAL_MS apart.
+const POLL_FAIL_THRESHOLD = 3;
+
 // Alert names seen around an active brew cycle on the E8's own alert
 // table (lib/profiles/EF538.js) -- used by brew()'s post-reply fallback
 // below. heating_up alone missed a second confirmed-live false-negative
@@ -115,6 +126,7 @@ class JuraMachineDevice extends Device {
     this._client = null;
     this._pollTimer = null;
     this._pollCount = 0;
+    this._pollFailCount = 0;
 
     this.registerCapabilityListener('onoff', async (value) => {
       // Fully read-only in both directions. @AN:02 (standby) is a
@@ -222,6 +234,7 @@ class JuraMachineDevice extends Device {
     try {
       await this._connectIfNeeded();
       const status = await this._client.readStatus(8000);
+      this._pollFailCount = 0;
       this.log('Status:', status.activeAlerts.join(', ') || '(none)');
 
       // onoff reflects "not in standby" -- the closest read-only analogue
@@ -279,8 +292,13 @@ class JuraMachineDevice extends Device {
         }
       }
     } catch (err) {
-      this.error('Poll failed:', err.message);
-      this.setUnavailable(friendlyPollError(err)).catch(this.error);
+      this._pollFailCount += 1;
+      this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, err.message);
+      // Only flip the device tile to unavailable once a hiccup has
+      // outlasted a couple of poll cycles -- see POLL_FAIL_THRESHOLD.
+      if (this._pollFailCount >= POLL_FAIL_THRESHOLD) {
+        this.setUnavailable(friendlyPollError(err)).catch(this.error);
+      }
       if (this._client) {
         await this._client.close().catch(() => {});
         this._client = null;

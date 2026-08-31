@@ -100,14 +100,34 @@
       const row = document.createElement('div');
       row.className = 'machine';
       const modelLabel = m.detectedModel ? m.detectedModel.label : 'model not recognised — pick manually next';
-      const badge = m.ready
-        ? '<span class="badge ready">Ready</span>'
-        : (m.standby ? '<span class="badge standby">Standby</span>' : '');
-      row.innerHTML =
-        '<div><div class="name">' + (m.name || 'Jura machine') + '</div>' +
-        '<div class="meta">' + m.address + ' · ' + (m.fw || '') + (m.articleNumber ? ' · art. ' + m.articleNumber : '') + '</div>' +
-        '<div class="meta">' + modelLabel + '</div></div>' +
-        badge;
+
+      // Built with createElement/textContent, not innerHTML: m.name and
+      // m.fw come straight off the UDP discovery reply (lib/discovery.js's
+      // decodeAscii), which is attacker-controllable -- anyone on the same
+      // LAN can broadcast a crafted reply with HTML/script in those
+      // fields. textContent can't execute markup, so this can't turn
+      // into script running in the pairing webview. connect.html already
+      // did this correctly; this file didn't.
+      const info = document.createElement('div');
+      const nameEl = document.createElement('div');
+      nameEl.className = 'name';
+      nameEl.textContent = m.name || 'Jura machine';
+      const metaEl = document.createElement('div');
+      metaEl.className = 'meta';
+      metaEl.textContent = m.address + ' · ' + (m.fw || '') + (m.articleNumber ? ' · art. ' + m.articleNumber : '');
+      const modelEl = document.createElement('div');
+      modelEl.className = 'meta';
+      modelEl.textContent = modelLabel;
+      info.append(nameEl, metaEl, modelEl);
+      row.appendChild(info);
+
+      if (m.ready || m.standby) {
+        const badge = document.createElement('span');
+        badge.className = m.ready ? 'badge ready' : 'badge standby';
+        badge.textContent = m.ready ? 'Ready' : 'Standby';
+        row.appendChild(badge);
+      }
+
       row.onclick = () => {
         try {
           status.className = 'status';
