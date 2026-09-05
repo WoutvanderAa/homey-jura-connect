@@ -131,10 +131,12 @@
       .catch((err) => {
         const message = (err && err.message) ? err.message : String(err);
         // WRONG_PIN means the machine has a security PIN set via the
-        // J.O.E. app and rejected the empty one we tried by default --
-        // confirmed live on a real Jura S8. Offer the pin field instead
-        // of just failing; every other rejection reason is a genuine
-        // error with nothing the user can retry their way out of here.
+        // J.O.E. app and rejected the empty one we tried by default. A
+        // real Jura S8 confirmed live that this rejection happens; this
+        // pin-prompt fix itself is not yet independently verified.
+        // Offer the pin field instead of just failing; every other
+        // rejection reason is a genuine error with nothing the user can
+        // retry their way out of here.
         if (message.includes('WRONG_PIN')) {
           showPinPrompt();
         } else {

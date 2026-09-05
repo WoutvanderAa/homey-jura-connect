@@ -67,7 +67,7 @@
     "nl": "Een race condition gefixt tussen het statuspollen en brew() die de machine na het zetten van koffie soms tot een minuut onbereikbaar kon laten. De apparaattegel springt ook niet meer op onbeschikbaar bij één losse gemiste poll. De brew()-succes-fallback checkt de status nu een paar keer verspreid in plaats van één keer, zodat een langere opwarmtijd niet meer gemist wordt. Een XSS-risico in het koppelscherm en een edge case met ongelimiteerde buffergroei in de protocollaag zijn ook gefixt."
   },
   "0.6.0": {
-    "en": "Added support for machines with a security PIN set via the J.O.E. app -- pairing now prompts for it when needed instead of only ever trying an empty one, and the PIN is remembered for future reconnects too. Reported live on a real Jura S8.",
-    "nl": "Ondersteuning toegevoegd voor machines met een beveiligingspincode ingesteld via de J.O.E.-app -- koppelen vraagt er nu om indien nodig in plaats van alleen een lege pincode te proberen, en de pincode wordt ook onthouden voor toekomstige herverbindingen. Live gemeld op een echte Jura S8."
+    "en": "Added support for machines with a security PIN set via the J.O.E. app -- pairing now prompts for it when needed instead of only ever trying an empty one, and the PIN is remembered for future reconnects too. Fixes a reported pairing failure on a real Jura S8; not yet independently confirmed working.",
+    "nl": "Ondersteuning toegevoegd voor machines met een beveiligingspincode ingesteld via de J.O.E.-app -- koppelen vraagt er nu om indien nodig in plaats van alleen een lege pincode te proberen, en de pincode wordt ook onthouden voor toekomstige herverbindingen. Fixt een gemeld koppelprobleem op een echte Jura S8; nog niet onafhankelijk bevestigd werkend."
   }
 }
