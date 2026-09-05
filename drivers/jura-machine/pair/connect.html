@@ -27,11 +27,12 @@
 
   .picker { margin: 20px 30px; text-align: left; }
   .picker p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
-  .picker select {
+  .picker select, .picker input[type="text"] {
     width: 100%; padding: 10px 12px; font-size: 14px; margin-top: 4px;
     border: 1px solid var(--border); border-radius: 100px; font-family: inherit; color: var(--text);
     background: #fff;
   }
+  .picker input[type="text"]:focus { outline: none; border-color: var(--brand-light); }
 
   .btn {
     font-family: inherit; font-size: 14px; font-weight: 600;
@@ -55,31 +56,56 @@
   </div>
 </div>
 
+<div id="pinPrompt" class="picker" style="display:none">
+  <p>This machine has a security PIN set (configured via the J.O.E.
+     app). Enter it to pair.</p>
+  <input id="pin-input" type="text" inputmode="numeric" placeholder="PIN">
+  <div style="text-align:center">
+    <button id="pin-submit" class="btn btn-primary">Connect</button>
+  </div>
+</div>
+
 <div id="error" class="error-box" style="display:none"></div>
 <div style="text-align:center">
   <button id="retry" class="btn btn-primary" style="display:none">Try again</button>
 </div>
 
 <script>
-  function showError(message) {
+  // Set once discovery/the manual picker resolves it, then reused across
+  // a pin retry -- each pair/*.html is a fresh page load with no other
+  // way to remember a prior choice between runHandshake() calls.
+  let chosenProfileCode;
+
+  function hideAllPanels() {
     document.getElementById('spinner').style.display = 'none';
     document.getElementById('prompt').style.display = 'none';
     document.getElementById('picker').style.display = 'none';
+    document.getElementById('pinPrompt').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('retry').style.display = 'none';
+  }
+
+  function showError(message) {
+    hideAllPanels();
     const el = document.getElementById('error');
     el.style.display = 'block';
     el.textContent = message;
     document.getElementById('retry').style.display = 'inline-block';
   }
 
-  function runHandshake(manualProfileCode) {
+  function showPinPrompt() {
+    hideAllPanels();
+    document.getElementById('pinPrompt').style.display = 'block';
+    document.getElementById('pin-input').focus();
+  }
+
+  function runHandshake(pin) {
+    hideAllPanels();
     document.getElementById('spinner').style.display = 'block';
     document.getElementById('prompt').style.display = 'block';
-    document.getElementById('picker').style.display = 'none';
-    document.getElementById('error').style.display = 'none';
-    document.getElementById('retry').style.display = 'none';
     document.getElementById('prompt').textContent = 'Connecting to the coffee machine…';
 
-    Homey.emit('pair', manualProfileCode)
+    Homey.emit('pair', { manualProfileCode: chosenProfileCode, pin })
       .then((paired) => {
         document.getElementById('prompt').textContent = 'Connected! Adding device…';
         return Homey.createDevice({
@@ -89,6 +115,10 @@
             address: paired.address,
             connId: paired.connId,
             authHash: paired.authHash,
+            // A machine with a PIN needs it again on every future
+            // reconnect, not just this pairing handshake -- see
+            // device.js's _buildClient.
+            pin: paired.pin || '',
             profileCode: paired.profileCode,
           },
           settings: {
@@ -99,13 +129,22 @@
       })
       .then(() => Homey.done())
       .catch((err) => {
-        showError((err && err.message) ? err.message : String(err));
+        const message = (err && err.message) ? err.message : String(err);
+        // WRONG_PIN means the machine has a security PIN set via the
+        // J.O.E. app and rejected the empty one we tried by default --
+        // confirmed live on a real Jura S8. Offer the pin field instead
+        // of just failing; every other rejection reason is a genuine
+        // error with nothing the user can retry their way out of here.
+        if (message.includes('WRONG_PIN')) {
+          showPinPrompt();
+        } else {
+          showError(message);
+        }
       });
   }
 
   function showPicker(models) {
-    document.getElementById('spinner').style.display = 'none';
-    document.getElementById('prompt').style.display = 'none';
+    hideAllPanels();
     document.getElementById('picker').style.display = 'block';
 
     const select = document.getElementById('model-select');
@@ -117,7 +156,10 @@
       select.appendChild(opt);
     });
 
-    document.getElementById('continue').onclick = () => runHandshake(select.value);
+    document.getElementById('continue').onclick = () => {
+      chosenProfileCode = select.value;
+      runHandshake('');
+    };
   }
 
   function start() {
@@ -126,7 +168,8 @@
         if (!machine) throw new Error('No machine selected, please go back and pick one');
         if (machine.detectedModel) {
           // Auto-detected from the article number -- go straight to the handshake.
-          runHandshake(undefined);
+          chosenProfileCode = undefined;
+          runHandshake('');
         } else {
           return Homey.emit('list_models').then(showPicker);
         }
@@ -141,6 +184,20 @@
   });
 
   document.getElementById('retry').addEventListener('click', start);
+  document.getElementById('pin-submit').addEventListener('click', () => {
+    // ',' is the field separator in the wire command (@HP:<pin>,<connId>,
+    // <hash>) -- guard against it corrupting the frame rather than
+    // sending it through and getting a confusing downstream failure.
+    const pin = document.getElementById('pin-input').value.trim();
+    if (pin.includes(',')) {
+      document.getElementById('pin-input').focus();
+      return;
+    }
+    runHandshake(pin);
+  });
+  document.getElementById('pin-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('pin-submit').click();
+  });
 
   start();
 </script>

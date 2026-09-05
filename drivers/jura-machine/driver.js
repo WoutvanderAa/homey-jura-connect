@@ -67,8 +67,11 @@ class JuraMachineDriver extends Driver {
     // `manualProfileCode` is only sent when the pair view had to show
     // the manual picker (unrecognised article number); when the
     // article number matched lib/models.js, connect.html skips the
-    // picker entirely and this is undefined.
-    session.setHandler('pair', async (manualProfileCode) => {
+    // picker entirely and this is undefined. `pin` is normally empty --
+    // only machines that had a security PIN set via the J.O.E. app
+    // need one (confirmed live via a real Jura S8 rejecting pairing
+    // with WRONG_PIN otherwise; see connect.html's retry-with-pin UI).
+    session.setHandler('pair', async ({ manualProfileCode, pin } = {}) => {
       const machine = selectedMachine;
       if (!machine) throw new Error('No machine selected, please go back and pick one');
 
@@ -80,14 +83,16 @@ class JuraMachineDriver extends Driver {
       const profile = models.getProfile(profileCode);
       const connId = JuraClient.randomConnId();
 
-      const client = new JuraClient(machine.address, { connId, profile });
+      const client = new JuraClient(machine.address, { connId, profile, pin: pin || '' });
 
       try {
         const result = await client.pair(60000, (msg) => {
           session.emit('prompt', msg).catch(() => {});
         });
         if (result.state !== 'CORRECT') {
-          throw new Error(`Pairing rejected by machine: ${result.state}`);
+          const err = new Error(`Pairing rejected by machine: ${result.state}`);
+          err.handshakeState = result.state;
+          throw err;
         }
         if (!client.authHash) {
           throw new Error('Machine accepted pairing but returned no auth hash — please retry.');
@@ -97,6 +102,11 @@ class JuraMachineDriver extends Driver {
           name: machine.name || 'Jura Coffee Machine',
           connId,
           authHash: client.authHash,
+          // Persisted so every later reconnect (device.js's _buildClient)
+          // can keep sending it too -- @HP: includes the pin on every
+          // handshake, not just the first, so a PIN-protected machine
+          // needs it again on every future connection, not just pairing.
+          pin: pin || '',
           profileCode,
           articleNumber: machine.articleNumber,
           hwId: machine.hwId,

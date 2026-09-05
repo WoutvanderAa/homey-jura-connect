@@ -205,6 +205,10 @@ class JuraMachineDevice extends Device {
     return new JuraClient(address, {
       connId: store.connId,
       authHash: store.authHash,
+      // @HP: includes the pin on every handshake, not just the first --
+      // a machine with a security PIN set (via the J.O.E. app) needs it
+      // again on every reconnect, not only during pairing.
+      pin: store.pin || '',
       profile,
     });
   }

@@ -68,6 +68,14 @@ missing, see `lib/profiles/README.md`; the protocol foundation
 (`crypto.js`, `protocol.js`, `discovery.js`, `juraClient.js`) never
 needs to change, only `lib/models.js` and a new profile file.
 
+If the machine has a security PIN set (via the J.O.E. app's own
+settings), pairing prompts for it after the first attempt comes back
+`WRONG_PIN` — confirmed live via a real Jura S8, reported in [GitHub
+issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4).
+The PIN is then stored alongside the auth hash and re-sent on every
+future reconnect too, not just this initial pairing — `@HP:` includes
+it on every handshake, not only the first one.
+
 ## Capabilities
 
 | Capability | Source | Notes |
