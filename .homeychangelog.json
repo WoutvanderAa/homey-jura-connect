@@ -73,5 +73,9 @@
   "0.7.0": {
     "en": "Added flow cards for the maintenance percentages (cleaning/filter/descale): a \"crossed above X%\" trigger and an \"is/isn't above X%\" condition for each, so you can build automations (e.g. a notification) around upcoming maintenance instead of checking the device tile yourself.",
     "nl": "Flow-kaarten toegevoegd voor de onderhoudspercentages (reiniging/filter/ontkalken): per type een \"kwam boven X%\"-trigger en een \"is/is niet boven X%\"-conditie, zodat je automatiseringen (bv. een melding) kunt bouwen rond aankomend onderhoud zonder zelf de apparaattegel te checken."
+  },
+  "0.8.0": {
+    "en": "Added a \"Total brews\" field on the device settings page -- the machine's own lifetime brew count, read directly off the machine. Not yet live-verified against real hardware.",
+    "nl": "Een \"Totaal bereidingen\"-veld toegevoegd op de instellingenpagina van het apparaat -- het aantal bereidingen dat de machine zelf ooit gemaakt heeft, rechtstreeks van de machine uitgelezen. Nog niet live geverifieerd tegen echte hardware."
   }
 }

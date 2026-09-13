@@ -357,6 +357,24 @@ class JuraMachineDevice extends Device {
           // take the whole device unavailable over an optional reading.
           this.error('Maintenance percent read failed (non-fatal):', err.message);
         }
+
+        // Lifetime brew total (@TR:32 page 0) -- shown as a read-only
+        // settings-page field rather than a capability, since it's a
+        // single slow-changing stat, not something worth an Insights
+        // graph or a device-tile slot. Same "not every profile answers
+        // this bank" reality as the maintenance percent read above, so
+        // same non-fatal handling -- but distinguished from a merely
+        // transient failure (timeout, disconnect) so a network hiccup
+        // doesn't wrongly overwrite the field with "not supported".
+        try {
+          const total = await this._client.readTotalBrewCount(6000);
+          this.setSettings({ total_brews: String(total) }).catch(this.error);
+        } catch (err) {
+          if (/does not implement the @TR:32/.test(err.message)) {
+            this.setSettings({ total_brews: 'Not supported by this machine' }).catch(this.error);
+          }
+          this.error('Total brew count read failed (non-fatal):', err.message);
+        }
       }
     } catch (err) {
       this._pollFailCount += 1;

@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -820,6 +820,28 @@
               "value": 0,
               "min": 0,
               "max": 300
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Statistics",
+            "nl": "Statistieken"
+          },
+          "children": [
+            {
+              "id": "total_brews",
+              "type": "label",
+              "label": {
+                "en": "Total brews",
+                "nl": "Totaal bereidingen"
+              },
+              "hint": {
+                "en": "Lifetime brew count reported by the machine itself (@TR:32). Updated periodically; shows \"not supported by this machine\" if the machine doesn't answer this counter bank.",
+                "nl": "Totaal aantal bereidingen zoals de machine zelf rapporteert (@TR:32). Wordt periodiek bijgewerkt; toont \"niet ondersteund door deze machine\" als de machine deze teller niet beantwoordt."
+              },
+              "value": "—"
             }
           ]
         }

@@ -97,6 +97,16 @@ from that same report before treating it as verified.
 | `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount can be overridden via the device's own `coffee_ml`/`espresso_ml` settings (0 = use the machine's built-in default). |
 | `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). |
 
+Not a capability, but worth mentioning here: the device settings page
+also shows a **Total brews** field — the machine's own lifetime brew
+count (`@TR:32` page 0, slot 0), read-only, refreshed on the same
+~5-minute cadence as the maintenance percentages. Only the lifetime
+total is surfaced, not a per-product breakdown — the other 63 slots in
+that bank are indexed by product code (with at least one documented
+per-model remapping quirk), which would need real per-model mapping
+work to show meaningfully. Shows "Not supported by this machine" if
+the machine doesn't implement this counter bank at all.
+
 The five alert names behind the first four alarms above (`fill_water`,
 `no_beans`, `insert_tray`, `empty_tray`, `empty_grounds`) were picked
 by surveying every bundled profile's alert list — they're the ones
@@ -286,10 +296,12 @@ App Store link in "Try it" above.
 ## Next steps
 
 - Live-verify more of the 72 bundled profiles as hardware becomes available.
-- Raw maintenance counters (`@TG:43`) and per-product brew counters
-  (`@TR:32`) exist in the protocol but aren't ported — the percent
-  bank (`@TG:C0`) already covers the main "do I need to
-  clean/descale/refill soon" use case.
+- Raw maintenance counters (`@TG:43`) exist in the protocol but aren't
+  ported — the percent bank (`@TG:C0`) already covers the main "do I
+  need to clean/descale/refill soon" use case. The per-product brew
+  counter bank (`@TR:32`) is now partially ported: just the lifetime
+  total (slot 0), not the per-product breakdown — see "Capabilities"
+  below.
 
 ## Structure
 
