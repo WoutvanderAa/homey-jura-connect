@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -995,6 +995,105 @@
             "filter": "driver_id=jura-machine"
           }
         ]
+      },
+      {
+        "id": "jura_maintenance_cleaning_crossed_above",
+        "title": {
+          "en": "Cleaning due % crossed above a value",
+          "nl": "Reiniging-% kwam boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Cleaning due crossed above [[threshold]]%",
+          "nl": "Reiniging nodig kwam boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "value",
+            "type": "number",
+            "title": { "en": "Percent", "nl": "Percentage" }
+          }
+        ]
+      },
+      {
+        "id": "jura_maintenance_filter_crossed_above",
+        "title": {
+          "en": "Filter due % crossed above a value",
+          "nl": "Filter-% kwam boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Filter due crossed above [[threshold]]%",
+          "nl": "Filter nodig kwam boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "value",
+            "type": "number",
+            "title": { "en": "Percent", "nl": "Percentage" }
+          }
+        ]
+      },
+      {
+        "id": "jura_maintenance_descale_crossed_above",
+        "title": {
+          "en": "Descale due % crossed above a value",
+          "nl": "Ontkalken-% kwam boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Descale due crossed above [[threshold]]%",
+          "nl": "Ontkalken nodig kwam boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "value",
+            "type": "number",
+            "title": { "en": "Percent", "nl": "Percentage" }
+          }
+        ]
       }
     ],
     "conditions": [
@@ -1065,6 +1164,84 @@
             "name": "device",
             "type": "device",
             "filter": "driver_id=jura-machine"
+          }
+        ]
+      },
+      {
+        "id": "jura_maintenance_cleaning_above",
+        "title": {
+          "en": "Cleaning due % !{{is|isn't}} above a value",
+          "nl": "Reiniging-% !{{is|is niet}} boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Cleaning due !{{is|isn't}} above [[threshold]]%",
+          "nl": "Reiniging nodig !{{is|is niet}} boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
+          }
+        ]
+      },
+      {
+        "id": "jura_maintenance_filter_above",
+        "title": {
+          "en": "Filter due % !{{is|isn't}} above a value",
+          "nl": "Filter-% !{{is|is niet}} boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Filter due !{{is|isn't}} above [[threshold]]%",
+          "nl": "Filter nodig !{{is|is niet}} boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
+          }
+        ]
+      },
+      {
+        "id": "jura_maintenance_descale_above",
+        "title": {
+          "en": "Descale due % !{{is|isn't}} above a value",
+          "nl": "Ontkalken-% !{{is|is niet}} boven een waarde"
+        },
+        "titleFormatted": {
+          "en": "Descale due !{{is|isn't}} above [[threshold]]%",
+          "nl": "Ontkalken nodig !{{is|is niet}} boven [[threshold]]%"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=jura-machine"
+          },
+          {
+            "name": "threshold",
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "placeholder": { "en": "80", "nl": "80" }
           }
         ]
       }

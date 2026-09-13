@@ -54,6 +54,45 @@ class JuraConnectApp extends App {
     this.homey.flow
       .getConditionCard('alarm_rear_cover_missing_on')
       .registerRunListener(async (args) => args.device.getCapabilityValue('alarm_rear_cover_missing') === true);
+
+    // Maintenance-percent conditions and crossed-above triggers. Unlike
+    // the boolean alarm_* capabilities above, Homey doesn't auto-fire
+    // anything for a plain "number" capability, so device.js calls
+    // .trigger() itself (in _poll()'s maintenance-read block) whenever
+    // a reading changes, passing both the new and previous value as
+    // state -- the run listener below is what turns that into a
+    // one-shot "just crossed this specific flow's threshold" check,
+    // since multiple flows can each have their own threshold watching
+    // the same underlying value stream.
+    const registerMaintenanceCards = (capability, triggerId, conditionId) => {
+      this.homey.flow
+        .getDeviceTriggerCard(triggerId)
+        .registerRunListener(async (args, state) => state.previousValue < args.threshold && state.value >= args.threshold);
+
+      this.homey.flow.getConditionCard(conditionId).registerRunListener(async (args) => {
+        const value = args.device.getCapabilityValue(capability);
+        // null on profiles that don't track this type (e.g. no filter
+        // cartridge fitted) -- can't be "above" a threshold with no
+        // reading, so treat that as false rather than coercing null to 0.
+        return value != null && value >= args.threshold;
+      });
+    };
+
+    registerMaintenanceCards(
+      'jura_maintenance_cleaning',
+      'jura_maintenance_cleaning_crossed_above',
+      'jura_maintenance_cleaning_above'
+    );
+    registerMaintenanceCards(
+      'jura_maintenance_filter',
+      'jura_maintenance_filter_crossed_above',
+      'jura_maintenance_filter_above'
+    );
+    registerMaintenanceCards(
+      'jura_maintenance_descale',
+      'jura_maintenance_descale_crossed_above',
+      'jura_maintenance_descale_above'
+    );
   }
 
 }

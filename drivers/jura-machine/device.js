@@ -14,6 +14,15 @@ const POLL_INTERVAL_MS = 10000;
 // above) instead.
 const MAINTENANCE_POLL_EVERY = 30;
 
+// Maps each maintenance-percent capability to its "crossed above" flow
+// trigger card id (both registered in app.js) -- see _poll()'s
+// maintenance-read block below for where these actually get triggered.
+const MAINTENANCE_TRIGGER_IDS = {
+  jura_maintenance_cleaning: 'jura_maintenance_cleaning_crossed_above',
+  jura_maintenance_filter: 'jura_maintenance_filter_crossed_above',
+  jura_maintenance_descale: 'jura_maintenance_descale_crossed_above',
+};
+
 // The WiFi module goes fully offline when the machine is powered off or
 // hits its auto-off timer -- surface that plainly instead of a raw
 // socket error code.
@@ -327,7 +336,18 @@ class JuraMachineDevice extends Device {
           // capability alone rather than showing a nonsense 255%.
           const setIfTracked = (cap, value) => {
             if (value === 0xff) return;
+            const previousValue = this.getCapabilityValue(cap);
             this.setCapabilityValue(cap, value).catch(this.error);
+            // previousValue is null the very first time this is ever read
+            // (capability has no value yet) -- nothing to have "crossed"
+            // from, so skip triggering rather than firing on every flow's
+            // threshold on that first reading.
+            if (previousValue !== null && previousValue !== value) {
+              this.homey.flow
+                .getDeviceTriggerCard(MAINTENANCE_TRIGGER_IDS[cap])
+                .trigger(this, { value }, { value, previousValue })
+                .catch(this.error);
+            }
           };
           setIfTracked('jura_maintenance_cleaning', maint.cleaning);
           setIfTracked('jura_maintenance_filter', maint.filterChange);
