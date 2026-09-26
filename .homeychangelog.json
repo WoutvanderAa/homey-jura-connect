@@ -77,5 +77,9 @@
   "0.8.0": {
     "en": "Added a \"Total brews\" field on the device settings page -- the machine's own lifetime brew count, read directly off the machine. Not yet live-verified against real hardware.",
     "nl": "Een \"Totaal bereidingen\"-veld toegevoegd op de instellingenpagina van het apparaat -- het aantal bereidingen dat de machine zelf ooit gemaakt heeft, rechtstreeks van de machine uitgelezen. Nog niet live geverifieerd tegen echte hardware."
+  },
+  "0.9.0": {
+    "en": "Fixed coffee/espresso always brewing at a fixed default strength (reported on a real E4) -- added coffee_strength/espresso_strength device settings to override it, same pattern as the existing ml settings. Also corrected the E4 profile's label, which looked like a region mismatch but wasn't (EA/SA/etc. are the same underlying profile).",
+    "nl": "Fout gefixt waarbij koffie/espresso altijd op een vaste standaardsterkte werd gezet (gemeld op een echte E4) -- coffee_strength/espresso_strength-instellingen toegevoegd om dit te overschrijven, hetzelfde patroon als de bestaande ml-instellingen. Ook het E4-profiellabel gecorrigeerd, dat leek op een regio-mismatch maar was dat niet (EA/SA/etc. zijn hetzelfde onderliggende profiel)."
   }
 }

@@ -403,22 +403,36 @@ class JuraMachineDevice extends Device {
    * cup is in place before calling this.
    *
    * There's no protocol command to read a machine's own personalised
-   * recipe settings (the on-machine amount you dialled in yourself) --
-   * @TP: always requires a complete explicit recipe, so without an
-   * override every brew silently falls back to the bundled profile's
-   * factory-default water amount, which won't match what you set on
-   * the machine itself. The coffee_ml/espresso_ml device settings are
-   * the workaround: filled in, they override the default here for
-   * both the quick buttons and this same method's flow-action route.
+   * recipe settings (the on-machine amount/strength you dialled in
+   * yourself) -- @TP: always requires a complete explicit recipe, so
+   * without an override every brew silently falls back to the bundled
+   * profile's factory-default water amount and strength, which won't
+   * match what you set on the machine itself. Confirmed live: a real
+   * E4 always brewed at strength level 2 ("normal") regardless of what
+   * was last set on the machine, since nothing here ever overrode it.
+   * The coffee_ml/espresso_ml/coffee_strength/espresso_strength device
+   * settings are the workaround: filled in, they override the default
+   * here for both the quick buttons and this same method's flow-action
+   * route. Strength's valid range varies by machine (most 1-10, some
+   * fewer) -- encodeParam() in lib/profile.js rejects an out-of-range
+   * level for the specific device's profile with a clear error, rather
+   * than this method trying to know every machine's own scale.
    */
   async brew(productName, overrides = {}) {
     const finalOverrides = { ...overrides };
+    const settings = this.getSettings();
     if (!('water_amount' in finalOverrides)) {
-      const settings = this.getSettings();
       if (productName === 'coffee' && settings.coffee_ml > 0) {
         finalOverrides.water_amount = settings.coffee_ml;
       } else if (productName === 'espresso' && settings.espresso_ml > 0) {
         finalOverrides.water_amount = settings.espresso_ml;
+      }
+    }
+    if (!('coffee_strength' in finalOverrides)) {
+      if (productName === 'coffee' && settings.coffee_strength > 0) {
+        finalOverrides.coffee_strength = settings.coffee_strength;
+      } else if (productName === 'espresso' && settings.espresso_strength > 0) {
+        finalOverrides.coffee_strength = settings.espresso_strength;
       }
     }
     await this._connectIfNeeded();

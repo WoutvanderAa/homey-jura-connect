@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -321,8 +321,8 @@
                 {
                   "id": "EF1031",
                   "label": {
-                    "en": "E4 (SA) (EF1031) — experimental, untested",
-                    "nl": "E4 (SA) (EF1031) — experimenteel, ongetest"
+                    "en": "E4 (EA/SA/etc.) (EF1031) — experimental, untested",
+                    "nl": "E4 (EA/SA/etc.) (EF1031) — experimenteel, ongetest"
                   }
                 },
                 {
@@ -787,8 +787,8 @@
         {
           "type": "group",
           "label": {
-            "en": "Brew amounts",
-            "nl": "Zethoeveelheden"
+            "en": "Brew amounts & strength",
+            "nl": "Zethoeveelheden & sterkte"
           },
           "children": [
             {
@@ -820,6 +820,36 @@
               "value": 0,
               "min": 0,
               "max": 300
+            },
+            {
+              "id": "coffee_strength",
+              "type": "number",
+              "label": {
+                "en": "Coffee strength (level)",
+                "nl": "Koffiesterkte (niveau)"
+              },
+              "hint": {
+                "en": "Overrides the built-in strength level for the Coffee button and flow action. Leave at 0 to use the machine's own default instead. Most machines use a 1-10 scale, some fewer (e.g. 1-3 mild/normal/strong) — an out-of-range level for your specific machine shows a clear error when brewing rather than silently doing the wrong thing.",
+                "nl": "Overschrijft het ingebouwde sterkteniveau voor de Koffie-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf. De meeste machines gebruiken een schaal van 1-10, sommige minder (bv. 1-3 mild/normaal/sterk) — een niveau buiten bereik voor jouw specifieke machine geeft een duidelijke foutmelding bij het zetten in plaats van stilzwijgend iets verkeerds te doen."
+              },
+              "value": 0,
+              "min": 0,
+              "max": 10
+            },
+            {
+              "id": "espresso_strength",
+              "type": "number",
+              "label": {
+                "en": "Espresso strength (level)",
+                "nl": "Espressosterkte (niveau)"
+              },
+              "hint": {
+                "en": "Overrides the built-in strength level for the Espresso button and flow action. Leave at 0 to use the machine's own default instead. Most machines use a 1-10 scale, some fewer (e.g. 1-3 mild/normal/strong) — an out-of-range level for your specific machine shows a clear error when brewing rather than silently doing the wrong thing.",
+                "nl": "Overschrijft het ingebouwde sterkteniveau voor de Espresso-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf. De meeste machines gebruiken een schaal van 1-10, sommige minder (bv. 1-3 mild/normaal/sterk) — een niveau buiten bereik voor jouw specifieke machine geeft een duidelijke foutmelding bij het zetten in plaats van stilzwijgend iets verkeerds te doen."
+              },
+              "value": 0,
+              "min": 0,
+              "max": 10
             }
           ]
         },

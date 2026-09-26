@@ -94,7 +94,7 @@ from that same report before treating it as verified.
 | `alarm_outlet_missing` | `outlet_missing` | The removable coffee-dispensing spout isn't attached. ~97% profile coverage, not 100% — see below. |
 | `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). Each has a "crossed above [threshold]%" flow trigger and an "is/isn't above [threshold]%" condition, so you can e.g. get notified once descaling passes 80% without polling the device tile yourself. |
-| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount can be overridden via the device's own `coffee_ml`/`espresso_ml` settings (0 = use the machine's built-in default). |
+| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount and strength can be overridden via the device's own `coffee_ml`/`espresso_ml`/`coffee_strength`/`espresso_strength` settings (0 = use the machine's built-in default) — these overrides also apply when the `brew_product` flow action below brews "coffee" or "espresso" specifically. |
 | `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). |
 
 Not a capability, but worth mentioning here: the device settings page
@@ -268,10 +268,17 @@ caught none of these — every one only showed up live):
 - **No protocol command reads a machine's own personalised recipe
   settings** — `@TP:` always requires a complete explicit recipe, so
   without an override, every brew silently uses the bundled profile's
-  factory-default water amount, not whatever you've dialled in on the
-  machine itself. There's no fixing this from the client side either;
-  the device's own `coffee_ml`/`espresso_ml` settings are the
-  workaround, not a real fix.
+  factory-default water amount **and strength**, not whatever you've
+  dialled in on the machine itself. Confirmed live on a real E4: every
+  brew came out at strength level 2 ("normal") regardless of what was
+  last set on the machine, since Homey had no way to know or override
+  it — reported via email, no GitHub issue. There's no fixing this from
+  the client side either; the device's own `coffee_ml`/`espresso_ml`/
+  `coffee_strength`/`espresso_strength` settings are the workaround,
+  not a real fix. Strength's valid range varies by machine (most 1-10,
+  some fewer, e.g. 1-3) — an out-of-range level for your specific
+  machine throws a clear error at brew time rather than silently doing
+  the wrong thing.
 
 ## Setup
 
