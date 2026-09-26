@@ -89,5 +89,9 @@
   "0.11.0": {
     "en": "Added a Hot water quick button on the device tile, next to Coffee/Espresso -- automatically shown only on machines that actually have this product (about 93% of bundled models), checked per device rather than assumed. Applies to already-paired devices too, not just newly added ones. Amount overridable via the new hotwater_ml setting, same as the existing coffee/espresso ones.",
     "nl": "Warm water-sneltoets toegevoegd op de apparaattegel, naast Koffie/Espresso -- automatisch alleen zichtbaar op machines die dit product daadwerkelijk hebben (ongeveer 93% van de gebundelde modellen), per apparaat gecheckt in plaats van aangenomen. Geldt ook voor al gekoppelde apparaten, niet alleen nieuw toegevoegde. Hoeveelheid te overschrijven via de nieuwe hotwater_ml-instelling, net als bij koffie/espresso."
+  },
+  "0.12.0": {
+    "en": "The coffee/espresso strength settings now show a read-only \"valid levels for this machine\" label right above them (e.g. \"mild, normal, strong\" or \"1 to 10\"), filled in from that specific device's own recipe data -- so you know what to type in without guessing.",
+    "nl": "Bij de koffie-/espressosterkte-instellingen staat nu een alleen-lezen label \"geldige niveaus voor deze machine\" erboven (bv. \"mild, normal, strong\" of \"1 to 10\"), ingevuld op basis van de receptgegevens van dat specifieke apparaat -- zodat je weet wat je moet invullen zonder te gokken."
   }
 }

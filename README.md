@@ -291,7 +291,14 @@ caught none of these — every one only showed up live):
   not a real fix. Strength's valid range varies by machine (most 1-10,
   some fewer, e.g. 1-3) — an out-of-range level for your specific
   machine throws a clear error at brew time rather than silently doing
-  the wrong thing.
+  the wrong thing. Settings pages can't show a per-device dropdown the
+  way `brew_product`'s flow-action strength argument does (Homey's
+  settings schema is static per app, identical for every device of a
+  driver), so instead there's a read-only `coffee_strength_options`/
+  `espresso_strength_options` label right above each override field,
+  filled in from this specific device's own recipe data (e.g. "mild,
+  normal, strong" or "1 to 10") so you at least know what to type in
+  without guessing or triggering that error first.
 
 ## Setup
 

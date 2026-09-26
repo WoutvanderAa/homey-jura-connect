@@ -90,6 +90,27 @@ function resolveHotwaterProductName(profile) {
   return null;
 }
 
+/**
+ * Human-readable summary of a coffee_strength param's valid values on
+ * this specific device's profile, for the read-only *_strength_options
+ * settings labels -- there's no per-device dynamic dropdown in Homey's
+ * static settings schema (see brew_product's flow-action strength
+ * argument for where that *is* possible), so this is the next best
+ * thing: tell the user exactly what to type into the number field next
+ * to it, instead of them having to guess or trigger an error first.
+ * A pure numeric scale (the common case, e.g. 1..10) collapses to a
+ * range; a named scale (e.g. mild/normal/strong) lists the names.
+ */
+function formatStrengthOptions(items) {
+  if (!items || items.length === 0) return '—';
+  const allNumeric = items.every((it) => /^\d+$/.test(it.name));
+  if (allNumeric) {
+    const nums = items.map((it) => Number(it.name));
+    return `${Math.min(...nums)} to ${Math.max(...nums)}`;
+  }
+  return items.map((it) => it.name.replace(/_/g, ' ')).join(', ');
+}
+
 class JuraMachineDevice extends Device {
 
   async onInit() {
@@ -170,6 +191,7 @@ class JuraMachineDevice extends Device {
     this._pollFailCount = 0;
     this._polling = false;
     await this._syncHotwaterCapability();
+    await this._syncStrengthOptionLabels();
 
     this.registerCapabilityListener('onoff', async (value) => {
       // Fully read-only in both directions. @AN:02 (standby) is a
@@ -241,6 +263,26 @@ class JuraMachineDevice extends Device {
     }
   }
 
+  /**
+   * Fill in the read-only coffee_strength_options/espresso_strength_options
+   * settings labels with this specific device's own valid strength
+   * values (see formatStrengthOptions) -- the closest thing to a
+   * per-device dropdown that Homey's static settings schema allows.
+   * Re-run from onSettings when profile_code changes.
+   */
+  async _syncStrengthOptionLabels() {
+    const profile = this._resolveProfile();
+    const optionsFor = (productName) => {
+      const product = profile.products.find((p) => p.name === productName);
+      const param = product && product.params.find((p) => p.kind === 'coffee_strength');
+      return param ? formatStrengthOptions(param.items) : '—';
+    };
+    this.setSettings({
+      coffee_strength_options: optionsFor('coffee'),
+      espresso_strength_options: optionsFor('espresso'),
+    }).catch(this.error);
+  }
+
   async onAdded() {
     this.log('Jura machine device added:', this.getName());
   }
@@ -252,8 +294,10 @@ class JuraMachineDevice extends Device {
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
     if (changedKeys.includes('profile_code')) {
-      // A corrected profile can add or remove hot water support.
+      // A corrected profile can add or remove hot water support, and
+      // changes which strength values are valid.
       await this._syncHotwaterCapability();
+      await this._syncStrengthOptionLabels();
     }
     if (changedKeys.includes('address') || changedKeys.includes('profile_code')) {
       this.log('Connection settings changed, reconnecting...');
