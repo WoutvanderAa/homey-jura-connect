@@ -68,6 +68,28 @@ function friendlyPollError(err) {
   return err.message;
 }
 
+/**
+ * The name of this profile's "plain hot water" product, or null if it
+ * doesn't have one -- used to conditionally show brew_hotwater_button
+ * (see _syncHotwaterCapability below), unlike brew_coffee_button/
+ * brew_espresso_button which every bundled profile has.
+ *
+ * Surveyed across all 72 bundled profiles: `hotwater_portion` is the
+ * name on 43 of them; on the other profiles that have hot water at
+ * all, the XML instead calls it `hotwater_portion_normal` (the two
+ * names never coexist on the same profile -- confirmed, not assumed)
+ * because that profile also offers temperature/flavour-specific
+ * variants like `hotwater_portion_green_tea`. Together the two names
+ * cover 67/72 profiles; the remaining 5 (all coffee-focused, e.g.
+ * EF532coffeeonly) genuinely have no hot water product at all.
+ */
+function resolveHotwaterProductName(profile) {
+  const names = new Set(profile.products.filter((p) => p.active !== false).map((p) => p.name));
+  if (names.has('hotwater_portion')) return 'hotwater_portion';
+  if (names.has('hotwater_portion_normal')) return 'hotwater_portion_normal';
+  return null;
+}
+
 class JuraMachineDevice extends Device {
 
   async onInit() {
@@ -147,6 +169,7 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
     this._pollFailCount = 0;
     this._polling = false;
+    await this._syncHotwaterCapability();
 
     this.registerCapabilityListener('onoff', async (value) => {
       // Fully read-only in both directions. @AN:02 (standby) is a
@@ -169,18 +192,53 @@ class JuraMachineDevice extends Device {
       }
     });
 
-    // Quick-access buttons for the only two products every bundled
-    // profile has (see README.md's "Why only 2 quick buttons" note) --
-    // brew_product (the flow action) stays the flexible, per-device
-    // route for anything else a specific machine's profile supports.
+    // Quick-access buttons. Coffee/espresso are the only two products
+    // every bundled profile has, so these two are always added (see
+    // README.md's "Why only 2 quick buttons" note for why there isn't
+    // a wider fixed menu here) -- brew_hotwater_button is the one
+    // exception, conditionally added below since not every machine has
+    // hot water. brew_product (the flow action) stays the flexible,
+    // per-device route for anything else a specific machine supports.
     this.registerCapabilityListener('brew_coffee_button', async () => {
       await this.brew('coffee');
     });
     this.registerCapabilityListener('brew_espresso_button', async () => {
       await this.brew('espresso');
     });
+    // Safe to register even on a device that doesn't have this
+    // capability right now (_syncHotwaterCapability above decides
+    // that per-device) -- Homey simply never fires a listener for a
+    // capability a device doesn't have.
+    this.registerCapabilityListener('brew_hotwater_button', async () => {
+      await this.brew(this._hotwaterProductName);
+    });
 
     await this._startPolling();
+  }
+
+  /**
+   * Add or remove brew_hotwater_button depending on whether this
+   * specific device's machine actually has a hot water product --
+   * unlike brew_coffee_button/brew_espresso_button (both 100% bundled-
+   * profile coverage), only ~93% of profiles do (see
+   * resolveHotwaterProductName), so this can't just be a static entry
+   * in the driver's default capability list the way those two are.
+   * Re-run from onSettings when profile_code changes, in case a
+   * correction adds or removes hot water support.
+   */
+  async _syncHotwaterCapability() {
+    const profile = this._resolveProfile();
+    this._hotwaterProductName = resolveHotwaterProductName(profile);
+    if (this._hotwaterProductName) {
+      if (!this.hasCapability('brew_hotwater_button')) {
+        await this.addCapability('brew_hotwater_button').catch(this.error);
+        this.setCapabilityOptions('brew_hotwater_button', {
+          icon: '/drivers/jura-machine/assets/button_hotwater.svg',
+        }).catch(this.error);
+      }
+    } else if (this.hasCapability('brew_hotwater_button')) {
+      await this.removeCapability('brew_hotwater_button').catch(this.error);
+    }
   }
 
   async onAdded() {
@@ -193,6 +251,10 @@ class JuraMachineDevice extends Device {
   }
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
+    if (changedKeys.includes('profile_code')) {
+      // A corrected profile can add or remove hot water support.
+      await this._syncHotwaterCapability();
+    }
     if (changedKeys.includes('address') || changedKeys.includes('profile_code')) {
       this.log('Connection settings changed, reconnecting...');
       this._stopPolling();
@@ -204,12 +266,19 @@ class JuraMachineDevice extends Device {
 
   // ---------- connection ----------
 
+  /** The profile for this device's machine -- settings override the store. */
+  _resolveProfile() {
+    const store = this.getStore();
+    const settings = this.getSettings();
+    const profileCode = settings.profile_code || store.profileCode || models.DEFAULT_PROFILE_CODE;
+    return models.getProfile(profileCode);
+  }
+
   _buildClient() {
     const store = this.getStore();
     const settings = this.getSettings();
     const address = settings.address || store.address;
-    const profileCode = settings.profile_code || store.profileCode || models.DEFAULT_PROFILE_CODE;
-    const profile = models.getProfile(profileCode);
+    const profile = this._resolveProfile();
 
     return new JuraClient(address, {
       connId: store.connId,
@@ -410,13 +479,14 @@ class JuraMachineDevice extends Device {
    * match what you set on the machine itself. Confirmed live: a real
    * E4 always brewed at strength level 2 ("normal") regardless of what
    * was last set on the machine, since nothing here ever overrode it.
-   * The coffee_ml/espresso_ml/coffee_strength/espresso_strength device
-   * settings are the workaround: filled in, they override the default
-   * here for both the quick buttons and this same method's flow-action
-   * route. Strength's valid range varies by machine (most 1-10, some
-   * fewer) -- encodeParam() in lib/profile.js rejects an out-of-range
-   * level for the specific device's profile with a clear error, rather
-   * than this method trying to know every machine's own scale.
+   * The coffee_ml/espresso_ml/coffee_strength/espresso_strength/
+   * hotwater_ml device settings are the workaround: filled in, they
+   * override the default here for both the quick buttons and this same
+   * method's flow-action route. Strength's valid range varies by
+   * machine (most 1-10, some fewer) -- encodeParam() in lib/profile.js
+   * rejects an out-of-range level for the specific device's profile
+   * with a clear error, rather than this method trying to know every
+   * machine's own scale.
    */
   async brew(productName, overrides = {}) {
     const finalOverrides = { ...overrides };
@@ -426,6 +496,11 @@ class JuraMachineDevice extends Device {
         finalOverrides.water_amount = settings.coffee_ml;
       } else if (productName === 'espresso' && settings.espresso_ml > 0) {
         finalOverrides.water_amount = settings.espresso_ml;
+      } else if (
+        (productName === 'hotwater_portion' || productName === 'hotwater_portion_normal') &&
+        settings.hotwater_ml > 0
+      ) {
+        finalOverrides.water_amount = settings.hotwater_ml;
       }
     }
     if (!('coffee_strength' in finalOverrides)) {

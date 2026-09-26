@@ -81,5 +81,13 @@
   "0.9.0": {
     "en": "Fixed coffee/espresso always brewing at a fixed default strength (reported on a real E4) -- added coffee_strength/espresso_strength device settings to override it, same pattern as the existing ml settings. Also corrected the E4 profile's label, which looked like a region mismatch but wasn't (EA/SA/etc. are the same underlying profile).",
     "nl": "Fout gefixt waarbij koffie/espresso altijd op een vaste standaardsterkte werd gezet (gemeld op een echte E4) -- coffee_strength/espresso_strength-instellingen toegevoegd om dit te overschrijven, hetzelfde patroon als de bestaande ml-instellingen. Ook het E4-profiellabel gecorrigeerd, dat leek op een regio-mismatch maar was dat niet (EA/SA/etc. zijn hetzelfde onderliggende profiel)."
+  },
+  "0.10.0": {
+    "en": "Added an optional strength argument to the \"Brew a product\" flow action -- its choices come live from the selected product's own recipe data (mild/normal/strong, a 1-10 scale, etc., whatever that specific machine actually has), not a fixed list, so it works correctly across every bundled model.",
+    "nl": "Optioneel sterkte-argument toegevoegd aan de \"Zet een product\"-flow-actie -- de keuzes komen live uit de receptgegevens van het gekozen product (mild/normaal/sterk, een schaal van 1-10, enz., wat die specifieke machine ook heeft), geen vaste lijst, dus werkt correct op elk gebundeld model."
+  },
+  "0.11.0": {
+    "en": "Added a Hot water quick button on the device tile, next to Coffee/Espresso -- automatically shown only on machines that actually have this product (about 93% of bundled models), checked per device rather than assumed. Applies to already-paired devices too, not just newly added ones. Amount overridable via the new hotwater_ml setting, same as the existing coffee/espresso ones.",
+    "nl": "Warm water-sneltoets toegevoegd op de apparaattegel, naast Koffie/Espresso -- automatisch alleen zichtbaar op machines die dit product daadwerkelijk hebben (ongeveer 93% van de gebundelde modellen), per apparaat gecheckt in plaats van aangenomen. Geldt ook voor al gekoppelde apparaten, niet alleen nieuw toegevoegde. Hoeveelheid te overschrijven via de nieuwe hotwater_ml-instelling, net als bij koffie/espresso."
   }
 }

@@ -1,0 +1,13 @@
+<!-- Custom icon for the brew_hotwater_button capability, styled to
+     match button_coffee.svg/button_espresso.svg: white stroke-only
+     outline, no fill, same viewBox and stroke width. A handle-less
+     glass distinguishes it from the two mugs, with a simple wavy
+     steam mark above to read as hot rather than cold water. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M35 42 h30 l-3 33 a5 5 0 0 1 -5 5 h-14 a5 5 0 0 1 -5 -5 z"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M41 34 c-6 -6 6 -10 0 -16"
+        fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M59 34 c-6 -6 6 -10 0 -16"
+        fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+</svg>

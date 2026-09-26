@@ -95,7 +95,8 @@ from that same report before treating it as verified.
 | `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
 | `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). Each has a "crossed above [threshold]%" flow trigger and an "is/isn't above [threshold]%" condition, so you can e.g. get notified once descaling passes 80% without polling the device tile yourself. |
 | `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount and strength can be overridden via the device's own `coffee_ml`/`espresso_ml`/`coffee_strength`/`espresso_strength` settings (0 = use the machine's built-in default) — these overrides also apply when the `brew_product` flow action below brews "coffee" or "espresso" specifically. |
-| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). |
+| `brew_hotwater_button` | — | Same quick-access pattern, but **conditional**: only added to devices whose profile actually has a hot water product (`hotwater_portion` or `hotwater_portion_normal` — 67/72 bundled profiles, ~93%; see `lib/profiles/README.md`). Devices on the other 5 profiles (all coffee-focused, e.g. `EF532coffeeonly`) simply never get this capability — checked (and re-checked if you correct the machine profile in settings) rather than assumed. Amount overridable via `hotwater_ml`, same 0-default convention. |
+| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). Has an optional strength argument, also autocomplete — its options are whatever the chosen product's own `coffee_strength` recipe parameter actually has on that specific device (e.g. mild/normal/strong on some models, a numeric 1-10 scale on others), read live from the profile rather than a hardcoded per-model table. Empty (and safe to leave unset) on a product with no adjustable strength, e.g. hot water. |
 
 Not a capability, but worth mentioning here: the device settings page
 also shows a **Total brews** field — the machine's own lifetime brew
@@ -135,19 +136,31 @@ Maintenance-percent direction is confirmed via
 [`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
 own docs ("percent-to-next-service" indicators), not guessed.
 
-**Why only 2 quick buttons, not a full J.O.E.-style product menu on the
-device tile:** checked this properly before deciding. Coverage falls
-off a cliff past coffee/espresso (cappuccino 61/72, latte macchiato
-59/72, then a long tail of 60+ products each on a handful of models),
-and the biggest single profile has 31 products — nowhere near
-button-tile territory. More fundamentally, Homey's capability enum
-values are fixed per app manifest, identical for every device using
-that capability; there's no per-device dynamic value list at the
-capability level the way flow-card autocomplete arguments have
-(`registerArgumentAutocompleteListener`, which `brew_product` already
-uses). A true dynamic per-model menu isn't buildable as a device-tile
-capability — `brew_product`'s flow-action autocomplete already *is*
-Homey's equivalent of that, just one level up from the tile itself.
+**Why only 3 quick buttons (coffee/espresso/hot water), not a full
+J.O.E.-style product menu on the device tile:** checked this properly
+before deciding. Coverage falls off a cliff past those three
+(cappuccino 61/72, latte macchiato 59/72, then a long tail of 60+
+products each on a handful of models), and the biggest single profile
+has 31 products — nowhere near button-tile territory.
+
+Two different things are true here, worth not conflating: a device
+**can** conditionally get a capability another device of the same
+driver doesn't (`brew_hotwater_button` is added/removed per device in
+`_syncHotwaterCapability`, based on whether that specific machine's
+profile has a hot water product) — that part *is* buildable, and is
+exactly how the hot water button differs from the always-present
+coffee/espresso ones. What isn't buildable as a device-tile capability
+is a single capability whose *possible values* vary per device — a
+true dynamic product **menu** with model-specific entries, the way
+J.O.E.'s own app has. Homey's capability enum values are fixed per app
+manifest, identical for every device that has that capability; there's
+no per-device dynamic value list at that level the way flow-card
+autocomplete arguments have (`registerArgumentAutocompleteListener`,
+which `brew_product`'s product and strength arguments both already
+use). `brew_product`'s flow-action autocomplete already *is* Homey's
+equivalent of that dynamic menu, just one level up from the tile
+itself — and it's the route for the 60+ products that don't clear the
+quick-button bar.
 
 ## What's verified
 
@@ -328,7 +341,7 @@ drivers/jura-machine/pair/*.html     — pair UI
 drivers/jura-machine/assets/icon.svg — driver icon (flow-card/capability-list icon-inner elements)
 drivers/jura-machine/assets/alarm_*.svg — custom capability icons
 drivers/jura-machine/assets/maintenance_*.svg — maintenance-percent capability icons
-drivers/jura-machine/assets/button_*.svg — brew_coffee_button/brew_espresso_button icons
+drivers/jura-machine/assets/button_*.svg — brew_coffee_button/brew_espresso_button/brew_hotwater_button icons
 drivers/jura-machine/assets/images/{large,small}.png — driver image, a real photo of the E8
 drivers/jura-machine/assets/machine.svg — old illustrated driver-image source, kept for reference only
 assets/icon.svg                      — app icon source: filled coffee bean with a cut-out crease, transparent background

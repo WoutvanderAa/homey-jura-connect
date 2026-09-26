@@ -1,6 +1,6 @@
 {
   "id": "nl.brokebyte.juraconnect",
-  "version": "0.9.0",
+  "version": "0.11.0",
   "compatibility": ">=5.0.0",
   "platforms": [
     "local"
@@ -205,6 +205,21 @@
       "setable": true,
       "uiComponent": "button",
       "icon": "/drivers/jura-machine/assets/button_espresso.svg"
+    },
+    "brew_hotwater_button": {
+      "type": "boolean",
+      "title": {
+        "en": "Brew hot water",
+        "nl": "Zet warm water"
+      },
+      "desc": {
+        "en": "Starts dispensing hot water immediately. No remote abort once started -- make sure a cup is in place. Only shown on devices whose machine actually has a hot water product (most, not all).",
+        "nl": "Start direct het afgeven van warm water. Geen externe stop mogelijk zodra gestart -- zorg dat er een kopje onder staat. Wordt alleen getoond op apparaten waarvan de machine daadwerkelijk warm water heeft (de meeste, niet alle)."
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "/drivers/jura-machine/assets/button_hotwater.svg"
     }
   },
   "drivers": [
@@ -850,6 +865,21 @@
               "value": 0,
               "min": 0,
               "max": 10
+            },
+            {
+              "id": "hotwater_ml",
+              "type": "number",
+              "label": {
+                "en": "Hot water (ml)",
+                "nl": "Warm water (ml)"
+              },
+              "hint": {
+                "en": "Overrides the built-in water amount for the Hot water button and flow action (only shown/relevant on machines that have this product). Leave at 0 to use the machine's own default instead.",
+                "nl": "Overschrijft de ingebouwde hoeveelheid water voor de Warm water-knop en -flow-actie (alleen getoond/relevant op machines die dit product hebben). Laat op 0 staan voor de standaardwaarde van de machine zelf."
+              },
+              "value": 0,
+              "min": 0,
+              "max": 450
             }
           ]
         },
@@ -887,8 +917,8 @@
           "nl": "Zet een product"
         },
         "titleFormatted": {
-          "en": "Brew [[product]]",
-          "nl": "Zet [[product]]"
+          "en": "Brew [[product]] at strength [[strength]]",
+          "nl": "Zet [[product]] op sterkte [[strength]]"
         },
         "args": [
           {
@@ -902,6 +932,15 @@
             "placeholder": {
               "en": "Choose a product",
               "nl": "Kies een product"
+            }
+          },
+          {
+            "name": "strength",
+            "type": "autocomplete",
+            "required": false,
+            "placeholder": {
+              "en": "Strength (default)",
+              "nl": "Sterkte (standaard)"
             }
           }
         ]
