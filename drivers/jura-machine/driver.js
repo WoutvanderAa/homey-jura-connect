@@ -80,10 +80,10 @@ class JuraMachineDriver extends Driver {
     // article number matched lib/models.js, connect.html skips the
     // picker entirely and this is undefined. `pin` is normally empty --
     // only needed on a machine with a security PIN set via the J.O.E.
-    // app (see connect.html's retry-with-pin UI). A real Jura S8
-    // confirmed live that an empty pin gets WRONG_PIN in that case;
-    // this fix itself is not yet independently verified against
-    // PIN-protected hardware.
+    // app (see connect.html's retry-with-pin UI). Pairing with the pin
+    // prompt is confirmed working on a real Jura S8 (EF1151), reported
+    // in GitHub issue #4. Resending the pin on every reconnect after
+    // that is not explicitly confirmed.
     session.setHandler('pair', async ({ manualProfileCode, pin } = {}) => {
       const machine = selectedMachine;
       if (!machine) throw new Error('No machine selected, please go back and pick one');

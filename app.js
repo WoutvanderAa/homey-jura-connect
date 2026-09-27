@@ -6,7 +6,7 @@ const models = require('./lib/models');
 class JuraConnectApp extends App {
 
   async onInit() {
-    this.log('Jura E8 app is running');
+    this.log('Jura Connect app is running');
 
     const brewAction = this.homey.flow.getActionCard('brew_product');
 

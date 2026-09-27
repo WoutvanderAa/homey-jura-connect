@@ -93,5 +93,9 @@
   "0.12.0": {
     "en": "The coffee/espresso strength settings now show a read-only \"valid levels for this machine\" label right above them (e.g. \"mild, normal, strong\" or \"1 to 10\"), filled in from that specific device's own recipe data -- so you know what to type in without guessing.",
     "nl": "Bij de koffie-/espressosterkte-instellingen staat nu een alleen-lezen label \"geldige niveaus voor deze machine\" erboven (bv. \"mild, normal, strong\" of \"1 to 10\"), ingevuld op basis van de receptgegevens van dat specifieke apparaat -- zodat je weet wat je moet invullen zonder te gokken."
+  },
+  "0.12.1": {
+    "en": "Pairing now recognises your model automatically, strength settings follow your machine's own scale, brewing no longer reports false failures or sends a second brew command, and profile or IP changes apply right away.",
+    "nl": "Koppelen herkent je model nu automatisch, sterkte-instellingen volgen de schaal van je machine, zetten meldt geen onterechte fout meer en stuurt geen tweede opdracht, en profiel- of IP-wijzigingen werken direct."
   }
 }
