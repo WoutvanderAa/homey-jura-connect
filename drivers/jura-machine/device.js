@@ -164,6 +164,14 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
     this._pollFailCount = 0;
     this._polling = false;
+    // Pending onSettings deferred-apply timer, if any -- see onSettings
+    // and _startPolling below for why settings changes need this at all.
+    this._applySettingsTimer = null;
+    // What the deferred timer above still needs to do once it fires --
+    // accumulated across every save since it last ran, not just the
+    // *last* save's own changedKeys (see onSettings for why that
+    // distinction matters).
+    this._pendingSettingsApply = { labels: false, reconnect: false };
     await this._syncHotwaterCapability();
     await this._syncStrengthOptionLabels();
 
@@ -221,9 +229,18 @@ class JuraMachineDevice extends Device {
    * in the driver's default capability list the way those two are.
    * Re-run from onSettings when profile_code changes, in case a
    * correction adds or removes hot water support.
+   *
+   * Takes an explicit `settings` object (defaulting to the already-
+   * saved this.getSettings()) so onSettings can pass `newSettings` --
+   * this.getSettings() still returns the OLD profile_code from inside
+   * onSettings itself, since Homey only persists newSettings once
+   * onSettings resolves (community.homey.app/t/88948). Only capability
+   * calls happen here, no settings read/write, so unlike
+   * _syncStrengthOptionLabels below this is safe to run immediately
+   * instead of deferred.
    */
-  async _syncHotwaterCapability() {
-    const profile = this._resolveProfile();
+  async _syncHotwaterCapability(settings = this.getSettings()) {
+    const profile = this._resolveProfile(settings);
     this._hotwaterProductName = resolveHotwaterProductName(profile);
     if (this._hotwaterProductName) {
       if (!this.hasCapability('brew_hotwater_button')) {
@@ -266,6 +283,11 @@ class JuraMachineDevice extends Device {
 
   async onDeleted() {
     this._stopPolling();
+    // Otherwise a pending onSettings deferred-apply (see onSettings
+    // below) would still fire after the device is gone.
+    if (this._applySettingsTimer) this.homey.clearTimeout(this._applySettingsTimer);
+    this._pendingSettingsApply.labels = false;
+    this._pendingSettingsApply.reconnect = false;
     if (this._client) await this._client.close().catch(() => {});
   }
 
@@ -296,18 +318,67 @@ class JuraMachineDevice extends Device {
     }
 
     if (changedKeys.includes('profile_code')) {
-      // A corrected profile can add or remove hot water support, and
-      // changes which strength values are valid.
-      await this._syncHotwaterCapability();
-      await this._syncStrengthOptionLabels();
+      // A corrected profile can add or remove hot water support --
+      // passed newSettings explicitly since _syncHotwaterCapability
+      // would otherwise read this.getSettings()'s still-OLD profile_code
+      // (see that method's own doc comment). Only touches capabilities,
+      // so unlike the label sync below it's safe to run right away.
+      await this._syncHotwaterCapability(newSettings);
     }
     if (changedKeys.includes('address') || changedKeys.includes('profile_code')) {
       this.log('Connection settings changed, reconnecting...');
       this._stopPolling();
       if (this._client) await this._client.close().catch(() => {});
       this._client = null;
-      await this._startPolling();
     }
+
+    // Accumulated (OR'd in), not overwritten -- a save's own changedKeys
+    // must not erase an earlier, still-pending save's need for a label
+    // sync or reconnect (see the big comment below for the scenario
+    // this guards against).
+    this._pendingSettingsApply.labels = this._pendingSettingsApply.labels || changedKeys.includes('profile_code');
+    this._pendingSettingsApply.reconnect =
+      this._pendingSettingsApply.reconnect || changedKeys.includes('address') || changedKeys.includes('profile_code');
+
+    // Everything below either reads this.getSettings() or calls
+    // setSettings(), and both are unsafe to do straight from inside
+    // onSettings: this.getSettings() here would still return the OLD
+    // values (Homey only persists newSettings once onSettings resolves
+    // -- community.homey.app/t/88948), and Athom's own SDK team
+    // documents setSettings() called from onSettings as unreliable
+    // (athombv/homey-apps-sdk-issues #383, #333) -- developers there
+    // settle on deferring it by about a second instead. The timer
+    // itself is cleared and re-armed on every call (not appended to) so
+    // two saves in quick succession only ever apply once -- but what to
+    // apply comes from _pendingSettingsApply above, accumulated across
+    // every save since the timer last fired, not this call's own
+    // changedKeys: a second save that only changes something unrelated
+    // (e.g. coffee_ml) would otherwise silently swallow an earlier
+    // save's still-pending profile_code/address work, since only the
+    // *last* setTimeout callback that gets armed ever actually runs.
+    if (this._applySettingsTimer) this.homey.clearTimeout(this._applySettingsTimer);
+    this._applySettingsTimer = this.homey.setTimeout(async () => {
+      this._applySettingsTimer = null;
+      const { labels, reconnect } = this._pendingSettingsApply;
+      this._pendingSettingsApply.labels = false;
+      this._pendingSettingsApply.reconnect = false;
+      // A rejected promise out of a timer callback is never caught by
+      // anything else -- Homey wouldn't surface it to the user the way
+      // a thrown Error from onSettings itself gets surfaced, it would
+      // just be an unhandled rejection.
+      try {
+        if (labels) {
+          // Changes which strength values are valid -- see
+          // _syncStrengthOptionLabels's own doc comment.
+          await this._syncStrengthOptionLabels();
+        }
+        if (reconnect) {
+          await this._startPolling();
+        }
+      } catch (err) {
+        this.error('Deferred settings-apply failed:', err.message);
+      }
+    }, 1000);
   }
 
   // ---------- connection ----------
@@ -389,6 +460,11 @@ class JuraMachineDevice extends Device {
   // ---------- polling ----------
 
   async _startPolling() {
+    // Guards against ever running two intervals side by side -- onInit
+    // and onSettings's deferred callback (see onSettings above) can
+    // each end up calling this, so this needs to be safe to call
+    // regardless of whether a caller already stopped the previous one.
+    this._stopPolling();
     await this._poll();
     this._pollTimer = this.homey.setInterval(() => this._poll(), POLL_INTERVAL_MS);
   }
