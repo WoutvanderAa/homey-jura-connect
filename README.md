@@ -176,9 +176,9 @@ physical E8:
 | `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; `EF538` and `EF1013` cross-checked against real hardware |
 | `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8, and against a real ENA 4 via an external tester |
 | Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Bugs fixed, and known limitations" below |
-| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms. ENA 4 (article 15501, EF1013): pairing, brewing (coffee + espresso), all five alarms — tested by Dijker via [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
+| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms. ENA 4 (article 15501, EF1013): pairing, brewing (coffee + espresso), all five alarms — tested by Dijker via [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1). S8 (article 15482, EF1151, `EF1151M V01.03`): **pairing only** (with the PIN-support fix) — confirmed by Arndkoch1-dot via [GitHub issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4); brewing/status/alarms on this model not yet confirmed, so `EF1151` stays `verified: false` in `lib/models.js` until they are. |
 
-Not yet live-verified: any of the other 70 bundled profiles.
+Not yet live-verified at all: any of the other 69 bundled profiles.
 
 ## Bugs fixed, and known limitations
 
