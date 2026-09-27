@@ -1,358 +1,129 @@
-# Jura Connect — Homey App
+# Jura Connect for Homey
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/woutvanderaa)
 
-A Homey app (SDK v3) for Jura coffee machines fitted with the
-**WiFi Connect** module — local, no cloud, no Jura account. Talks
-directly to the WiFi dongle on TCP port 51515. The protocol layer and
-Homey driver have no model-specific code; only the per-model product
-catalogue is data (see "Supported models").
+A Homey app (SDK v3) for Jura coffee machines fitted with the WiFi Connect
+module, talking directly to the dongle over TCP port 51515. Fully local:
+no cloud, no Jura account.
 
 > This app is not made by, affiliated with, or endorsed by Jura
 > Elektroapparate AG. "Jura" is a trademark of Jura Elektroapparate AG;
 > this app is an independent, community-driven project.
 
-**Does this already exist for Homey?** No — the Homey forum has been
-asking for this since 2020 (see e.g.
-[this thread](https://community.homey.app/t/j-o-e-app-van-jura-koffieapparaat/33873)),
-without a working app ever showing up.
+## Install
 
-## Try it
-
-Live on the Homey App Store, certified, no special permission needed:
+Available on the Homey App Store:
 **https://homey.app/a/nl.brokebyte.juraconnect/**
 
-Got a Jura with WiFi Connect that's a different model than the E8 or
-ENA 4? Pair it and let us know how it went via
-[GitHub issues](https://github.com/WoutvanderAa/homey-jura-connect/issues)
-— that's how untested profiles get flipped to verified for the next
-person.
-
-## Attribution
-
-JavaScript port of the reverse-engineering work in the Python package
-**[`jura_connect`](https://pypi.org/project/jura-connect/)** by
-**makefu** (`jura-connect-hass` on GitHub), itself derived from the
-J.O.E. Android app. All credit for the handshake protocol, the
-cipher, and the machine XML catalogue goes there — this repo is a
-port, not original reverse-engineering. Both projects are MIT-licensed
-(see `LICENSE`).
-
-**App Store banner photo** (`assets/images/{large,small}.png`): a real
-Jura Z8 brewing coffee, by **coffee-rank**
-([source](https://www.flickr.com/photos/189612330@N06/50330277776)),
-licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
-cropped from the original.
-
-**Driver image** (`drivers/jura-machine/assets/images/{large,small}.png`):
-a photo of the author's own paired E8, no external license needed.
+Requirement: the WiFi Connect dongle must already be paired to your
+network via the J.O.E. app.
 
 ## Supported models
 
-**All 72 models** from `jura_connect`'s `JOE_MACHINES.TXT` catalogue
-are bundled (`lib/profiles/*.js`, one file per EF code). Two are
-verified against real hardware so far: the **Jura E8 (EF538)** and
-the **ENA 4 (EF1013)**, the latter via an external tester's GitHub
-issue rather than our own machine. Every other model's label is
-suffixed "— experimental, untested" in the pairing/settings UI
-(`lib/models.js`'s `verified` flag) — that's a literal statement, not
-a disclaimer for show. Found a bug, or got one working? [Open an
-issue](https://github.com/WoutvanderAa/homey-jura-connect/issues) so
-it can be flipped to verified.
+All 72 models from the J.O.E. app's own catalogue are bundled, one
+profile per EF code. Verified so far:
 
-During pairing the model is auto-detected from the discovery reply's
-article number. If it isn't recognised, the manual picker's labels
-include the EF code, which usually matches the machine's own hwId —
-useful for self-identifying. To add a model that's somehow still
-missing, see `lib/profiles/README.md`; the protocol foundation
-(`crypto.js`, `protocol.js`, `discovery.js`, `juraClient.js`) never
-needs to change, only `lib/models.js` and a new profile file.
+| Model | Profile | Verified | Source |
+|---|---|---|---|
+| E8 (EB) | EF538 | Full: pairing, status, brewing, maintenance percentages, alarms | Maintainer's own machine |
+| ENA 4 (EA) | EF1013 | Pairing, coffee, espresso, water alarm, tray-missing alarm | [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
+| S8 (NAB) | EF1151 | Pairing only, with a security PIN | [GitHub issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4) |
+| E8 (EC) | EF1092 | Alarms | [Homey forum](https://community.homey.app/t/158080) |
 
-If the machine has a security PIN set (via the J.O.E. app's own
-settings), pairing prompts for it after the first attempt comes back
-`WRONG_PIN`. The PIN is then stored alongside the auth hash and
-re-sent on every future reconnect too, not just this initial pairing
-— `@HP:` includes it on every handshake, not only the first one.
+Every other bundled model shows as "experimental, untested" in the
+pairing and settings picker. Does it work on your model, or not?
+Report it via the "Model verification report" issue template, that's
+how a model gets flipped to verified.
 
-**Not yet live-verified**: a real Jura S8 confirmed the `WRONG_PIN`
-rejection itself ([GitHub issue
-#4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4)), but
-this fix — the PIN prompt and re-send-on-reconnect — hasn't been
-tested against real PIN-protected hardware yet. Awaiting confirmation
-from that same report before treating it as verified.
+During pairing the app recognises your model automatically from the
+discovery reply. If you enter the IP address manually instead, pick
+the model yourself from the list.
 
-## Capabilities
+## Features
 
-| Capability | Source | Notes |
-|---|---|---|
-| `onoff` | `@HU?` status | Fully read-only — toggling either direction throws. There's no remote power-*on* command, and power-*off* (`@AN:02`) is a UART/Bluetooth-era command that `jura_connect`'s own command registry documents the WiFi dongle silently ignoring; confirmed on a real ENA 4. If it ever works on your firmware, that's worth reporting. |
-| `alarm_generic` | any active error bit | Catch-all "needs attention", custom cup icon instead of Homey's bell. |
-| `alarm_water` | `fill_water` | Homey's built-in water-alarm capability/icon. |
-| `alarm_beans` | `no_beans` | Custom capability + icon. |
-| `alarm_tray` | `empty_tray` / `empty_grounds` | Tray or grounds container present but **full**, needs emptying. |
-| `alarm_tray_missing` | `insert_tray` | Tray not inserted **at all** — a genuinely different physical state from "full", not a duplicate. Machine won't run until it's back in. |
-| `alarm_outlet_missing` | `outlet_missing` | The removable coffee-dispensing spout isn't attached. ~97% profile coverage, not 100% — see below. |
-| `alarm_rear_cover_missing` | `rear_cover_missing` | The removable rear access panel isn't attached. ~96% profile coverage. |
-| `jura_maintenance_cleaning`/`_filter`/`_descale` | `@TG:C0` | 0-100%, **higher = more due**, resets to 0 right after that maintenance action. `_filter` is hidden (not set) on machines with no filter cartridge fitted (raw value `0xFF`). Each has a "crossed above [threshold]%" flow trigger and an "is/isn't above [threshold]%" condition, so you can e.g. get notified once descaling passes 80% without polling the device tile yourself. |
-| `brew_coffee_button` / `brew_espresso_button` | — | Quick-access buttons on the device tile for the only two products **every** bundled profile has (100% coverage — see notes below). Same destructive, no-abort behaviour as any other brew call. Water amount and strength can be overridden via the device's own `coffee_ml`/`espresso_ml`/`coffee_strength`/`espresso_strength` settings (0 = use the machine's built-in default) — these overrides also apply when the `brew_product` flow action below brews "coffee" or "espresso" specifically. |
-| `brew_hotwater_button` | — | Same quick-access pattern, but **conditional**: only added to devices whose profile actually has a hot water product (`hotwater_portion` or `hotwater_portion_normal` — 67/72 bundled profiles, ~93%; see `lib/profiles/README.md`). Devices on the other 5 profiles (all coffee-focused, e.g. `EF532coffeeonly`) simply never get this capability — checked (and re-checked if you correct the machine profile in settings) rather than assumed. Amount overridable via `hotwater_ml`, same 0-default convention. |
-| `brew_product` (flow action) | — | Autocomplete picker filled from the paired device's own profile — the flexible route for anything beyond coffee/espresso, since product lists vary wildly per model (2 to 31 products). Has an optional strength argument, also autocomplete — its options are whatever the chosen product's own `coffee_strength` recipe parameter actually has on that specific device (e.g. mild/normal/strong on some models, a numeric 1-10 scale on others), read live from the profile rather than a hardcoded per-model table. Empty (and safe to leave unset) on a product with no adjustable strength, e.g. hot water. |
-
-Not a capability, but worth mentioning here: the device settings page
-also shows a **Total brews** field — the machine's own lifetime brew
-count (`@TR:32` page 0, slot 0), read-only, refreshed on the same
-~5-minute cadence as the maintenance percentages. Only the lifetime
-total is surfaced, not a per-product breakdown — the other 63 slots in
-that bank are indexed by product code (with at least one documented
-per-model remapping quirk), which would need real per-model mapping
-work to show meaningfully. Shows "Not supported by this machine" if
-the machine doesn't implement this counter bank at all.
-
-The five alert names behind the first four alarms above (`fill_water`,
-`no_beans`, `insert_tray`, `empty_tray`, `empty_grounds`) were picked
-by surveying every bundled profile's alert list — they're the ones
-present, by name, in **all 72** profiles (see
-`lib/profiles/README.md`), so they work for any paired model.
-`insert_coffee_bin` and `fill_system` are also 100% but read as
-mechanical faults rather than something worth a flow notification, so
-they stay folded into `alarm_generic`. `outlet_missing`/
-`rear_cover_missing` are the next tier down at 96-97% (70/72 and
-69/72 profiles respectively) — not universal, but common enough to be
-worth their own capability; on the handful of profiles that lack the
-alert name entirely, these two simply never go `true`, same as any
-other alarm on a machine that can't report it.
-
-Every custom capability here uses the `alarm_` prefix on purpose:
-Homey grants automatic device-tile grouping and a warning icon to
-anything prefixed `alarm_`. **Flow cards are not automatic**, though
-— that only applies to Homey's own built-in `alarm_*` capabilities
-(like `alarm_water`, which ships with its own cards for free); custom
-ones still need explicit `flow.triggers`/`flow.conditions` entries in
-`app.json` (see the `<capability>_true`/`_false` trigger-id convention
-there) plus a `registerRunListener` for each condition in `app.js`.
-Learned this the hard way after assuming the prefix alone was enough.
-
-Maintenance-percent direction is confirmed via
-[`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)'s
-own docs ("percent-to-next-service" indicators), not guessed.
-
-**Why only 3 quick buttons (coffee/espresso/hot water), not a full
-J.O.E.-style product menu on the device tile:** checked this properly
-before deciding. Coverage falls off a cliff past those three
-(cappuccino 61/72, latte macchiato 59/72, then a long tail of 60+
-products each on a handful of models), and the biggest single profile
-has 31 products — nowhere near button-tile territory.
-
-Two different things are true here, worth not conflating: a device
-**can** conditionally get a capability another device of the same
-driver doesn't (`brew_hotwater_button` is added/removed per device in
-`_syncHotwaterCapability`, based on whether that specific machine's
-profile has a hot water product) — that part *is* buildable, and is
-exactly how the hot water button differs from the always-present
-coffee/espresso ones. What isn't buildable as a device-tile capability
-is a single capability whose *possible values* vary per device — a
-true dynamic product **menu** with model-specific entries, the way
-J.O.E.'s own app has. Homey's capability enum values are fixed per app
-manifest, identical for every device that has that capability; there's
-no per-device dynamic value list at that level the way flow-card
-autocomplete arguments have (`registerArgumentAutocompleteListener`,
-which `brew_product`'s product and strength arguments both already
-use). `brew_product`'s flow-action autocomplete already *is* Homey's
-equivalent of that dynamic menu, just one level up from the tile
-itself — and it's the route for the 60+ products that don't clear the
-quick-button bar.
-
-## What's verified
-
-Verified by installing the real `jura_connect` Python package and
-testing the JS port byte-for-byte against it, then live against a
-physical E8:
-
-| Part | Status |
+| Capability | What it shows |
 |---|---|
-| `lib/crypto.js` | ✅ 88 test vectors, byte-identical to Python |
-| `lib/discovery.js` | ✅ Synthetic + live (finds real machines on the LAN) |
-| `lib/profile.js` (recipe encoder) | ✅ Byte-exact against Python, multiple models |
-| `lib/profiles/*.js` (72 profiles) | ✅ Data from the J.O.E. catalogue; `EF538` and `EF1013` cross-checked against real hardware |
-| `lib/juraClient.js` (handshake/status/brew/maintenance) | ✅ Mock-server + live against a real E8, and against a real ENA 4 via an external tester |
-| Homey pair flow (`driver.js`, `pair/*.html`) | ✅ Live-verified — see "Bugs fixed, and known limitations" below |
-| Full stack against real hardware | ✅ E8 (article 15336, hwId `EF538M V01.05`): pairing, status, brewing, maintenance %, alarms. ENA 4 (article 15501, EF1013): pairing, brewing (coffee + espresso), all five alarms — tested by Dijker via [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1). S8 (article 15482, EF1151, `EF1151M V01.03`): **pairing only** (with the PIN-support fix) — confirmed by Arndkoch1-dot via [GitHub issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4); brewing/status/alarms on this model not yet confirmed, so `EF1151` stays `verified: false` in `lib/models.js` until they are. |
+| `onoff` | On/off state, read-only |
+| `alarm_generic` | Needs attention (any active error) |
+| `alarm_water` | Water tank empty |
+| `alarm_beans` | Out of beans |
+| `alarm_tray` | Drip tray or grounds container full |
+| `alarm_tray_missing` | Drip tray not inserted |
+| `alarm_outlet_missing` | Coffee spout not attached |
+| `alarm_rear_cover_missing` | Rear access panel not attached |
+| `jura_maintenance_cleaning` / `_filter` / `_descale` | Percent until due, higher = sooner |
+| `brew_coffee_button` / `brew_espresso_button` | Quick-brew buttons on the device tile |
+| `brew_hotwater_button` | Same, only added on machines that actually have this product |
 
-Not yet live-verified at all: any of the other 69 bundled profiles.
+Flow cards: a "Brew a product" action covering any product your
+specific machine has, with an optional strength argument; a trigger
+and a condition for each alarm above; and a "crossed above X%" trigger
+plus an "is above X%" condition for each maintenance type. "Total
+brews" is available in the device settings, under Statistics.
 
-## Bugs fixed, and known limitations
+## Settings
 
-The first group below is history — real bugs, all already fixed, kept
-here as a record of what to watch for (some of these mistakes have a
-habit of repeating). The second group is still true today: hardware
-and protocol realities that no code change here can fix.
+Water amounts (ml) for coffee, espresso and hot water. 0 uses the
+default from the machine's own profile.
 
-**Bugs found against real hardware, now fixed** (`homey app validate`
-caught none of these — every one only showed up live):
+Strength for coffee and espresso is the level number your machine
+itself shows, on whatever scale that machine uses: a numeric scale
+(e.g. 1 to 10, or 3 to 10 on some E6/E8 models), or a named scale
+where 1 is the mildest (e.g. 1 = mild, 2 = normal, 3 = strong). The
+label above each field shows the numbers your specific machine has.
+0 uses the default strength from the machine's profile, not whatever
+you've dialled in on the machine itself (the app can't read that). A
+value your machine doesn't have is rejected when you save.
 
-- **Pair-flow race condition**: `start.html` called
-  `Homey.showView('connect')` before the `select_machine` emit was
-  acknowledged, sometimes loading the next view with an empty
-  selection. Fixed by navigating inside the emit's `.then()`.
-- **Redundant system "Next" button**: `app.json`'s `start` pair view
-  had `navigation.next` set, which made Homey render its own button
-  that bypassed the custom row-click handler entirely. Removed.
-- **`Homey.setNavigationCloseable` doesn't exist** in this Homey
-  CLI/runtime (v4.4.1, software 13.4.0) — threw synchronously before
-  the click handler ever reached `Homey.emit()`. Wrapped in a `typeof`
-  check.
-- Before all 72 models were bundled, our own live E8 (article 15336,
-  hwId `EF538M V01.05`) was paired manually as `EF533V2` since `EF538`
-  wasn't in the list yet — it brewed fine, but `EF538` is the actually
-  correct profile. If you paired before this fix, check your device
-  settings against the hwId shown at pairing time.
-- **Two unrelated icon bugs, both invisible until checked on a real
-  device**:
-  - The app icon's very first version was outline/stroke-only per a
-    literal reading of Homey's "no filled illustrations" guideline
-    text, and rendered as a blank circle live. Homey masks the app
-    icon via CSS `mask-image`, which is luminance-based, not
-    alpha-based — a mid-tone fill colour is nearly invisible against a
-    dark `brandColor` backdrop regardless of how opaque it is. Fixed by
-    using a filled shape (white, maximum luminance) with the bean's
-    crease as a genuine cut-out (`fill-rule="evenodd"` compound path)
-    instead of a stroke overlay.
-  - Separately, every capability icon (`alarm_*.svg`) rendered as an
-    empty/missing placeholder regardless of fill colour, for a
-    completely different reason: a literal `--` inside an SVG
-    `<!-- comment -->` body is invalid XML, and it silently broke every
-    icon that had one — which, after several rounds of "fix the
-    colour" guesses, turned out to be all of them (this exact mistake
-    — a `--` inside a comment — had already happened twice earlier in
-    this same project for the app/driver icon; watch for it). Also
-    learned along the way: a capability's `icon` needs to be set in its
-    **`app.json` definition** (`"icon": "/path/to.svg"` inside the
-    `capabilities` block), not only via runtime
-    `setCapabilityOptions()` — Homey appears to snapshot a capability's
-    icon at the moment it's first added to a device, so already-paired
-    devices need a one-time forced `removeCapability`/`addCapability`
-    (see `device.js`'s `onInit`) to pick up an icon added after the
-    fact.
-- **`brew()` could report a genuinely successful brew as a failure**
-  (`Machine did not accept the brew command (reply: @hu:800)`),
-  confirmed on both a real E8 and a real E4 — so not model-specific.
-  First suspected a poll cycle and the brew racing for the same reply
-  on one connection, so `request()`/`connect()` were serialized
-  through a per-client queue (`_enqueue` in `juraClient.js`) — a real
-  latent bug worth having fixed regardless, but it turned out *not* to
-  be the cause here: the exact same `@hu:800` reply came back again
-  after that fix, identically, which a genuine race wouldn't reproduce
-  so precisely. The actual pattern: it happened right as the machine
-  woke from `energy_safe`, matching the code's existing "first `@TP:`
-  just wakes the machine, resend" handling — except the retry fired
-  instantly, before the wake-up had actually finished, so the second
-  attempt got the same not-yet-ready reply too. Fixed two ways: a 3s
-  pause before that retry, and — since there's no way to know what
-  every one of the 72 profiles' wake-up reply looks like, or catalogue
-  it as new ones turn up — a fallback in `device.js` that checks
-  whether the machine is actually `heating_up` before giving up,
-  regardless of what the reply text says.
+## Known limitations
 
-**Still true today — hardware/network/protocol realities, not bugs:**
+- UDP discovery doesn't cross VLANs: use the manual IP field and pick
+  the model yourself.
+- After the machine's own auto-off timer kicks in, the dongle goes
+  unreachable too. There's no way to wake it remotely.
+- Remote on/off isn't possible; the dongle ignores that command.
+- The J.O.E. app can't connect while Homey is connected. The dongle
+  only accepts one connection at a time.
+- Alarms can lag the machine's actual state by a few minutes. The
+  cause is in how this app processes status messages; a fix is
+  planned for 0.13.0.
+- There's no way to remotely abort a brew already in progress.
 
-- **UDP broadcast discovery doesn't cross VLANs**, even with a
-  firewall allow rule (L3 routing behaviour, not a policy setting).
-  `start.html` has a manual IP-entry fallback for cross-VLAN setups.
-- **The machine goes fully unreachable after its auto-off timer** —
-  the WiFi module powers down too. `device.js` shows "Machine appears
-  to be off or unreachable" instead of a raw socket error, but there's
-  no way to remotely wake it.
-- **The on-machine pairing confirmation isn't always an "OK" button** —
-  the E8 has one, but a real ENA 4 confirms via its bean button
-  instead. The pairing prompt text is model-agnostic ("confirm on the
-  machine's display") to match.
-- **Alarms (tray/water/etc.) can lag a physical change by 3-4
-  minutes**, confirmed on both an E8 and an ENA 4 — a full, restart-free
-  test showed `@HU?` replies coming back exactly every 10s the entire
-  time, just with a stale-but-honest value until the machine's own
-  status word caught up. `jura_connect`'s own simulator documents
-  "periodic unsolicited `@TF:` status broadcasts" as a real protocol
-  feature, and `jura-connect-hass`'s README notes "JURA dongles sleep
-  regularly" — so the machine/dongle appears to refresh its internal
-  status on its own multi-minute cycle, independent of how often
-  anything asks. There's no faster read command to fall back on
-  (`@HU?` is the only one, in this app and upstream), so this isn't
-  fixable from the client side.
-- **No protocol command reads a machine's own personalised recipe
-  settings** — `@TP:` always requires a complete explicit recipe, so
-  without an override, every brew silently uses the bundled profile's
-  factory-default water amount **and strength**, not whatever you've
-  dialled in on the machine itself. Confirmed live on a real E4: every
-  brew came out at strength level 2 ("normal") regardless of what was
-  last set on the machine, since Homey had no way to know or override
-  it — reported via email, no GitHub issue. There's no fixing this from
-  the client side either; the device's own `coffee_ml`/`espresso_ml`/
-  `coffee_strength`/`espresso_strength` settings are the workaround,
-  not a real fix. Strength's valid range varies by machine (most 1-10,
-  some fewer, e.g. 1-3) — an out-of-range level for your specific
-  machine throws a clear error at brew time rather than silently doing
-  the wrong thing. Settings pages can't show a per-device dropdown the
-  way `brew_product`'s flow-action strength argument does (Homey's
-  settings schema is static per app, identical for every device of a
-  driver), so instead there's a read-only `coffee_strength_options`/
-  `espresso_strength_options` label right above each override field,
-  filled in from this specific device's own recipe data (e.g. "mild,
-  normal, strong" or "1 to 10") so you at least know what to type in
-  without guessing or triggering that error first.
+## Reporting a problem
 
-## Setup
+Use the GitHub issue templates: bug report, feature request, or model
+verification. Including a Homey diagnostics report ID helps a lot.
 
-For running the app from source (contributing, adding a model, or
-just poking around) — regular users don't need any of this, just the
-App Store link in "Try it" above.
+## Credits
 
-1. The **WiFi Connect module** must already be paired to your network
-   via the J.O.E. app.
-2. `npm install` — no dependencies, only Node's built-in `net`/`dgram`/`crypto`.
-3. `homey app validate`
-4. `homey app run` — requires Docker. Without Docker (e.g. a remote
-   Homey Pro/Self-Hosted Server), use `homey app run --remote`
-   instead: builds and installs directly on the Homey.
-5. **Pair the device**: UDP-broadcast scan, then confirm the "Connect"
-   prompt on the machine's own display within 60 seconds — the exact
-   button varies by model (often OK/checkmark, the bean button on the
-   ENA line). Homey on a different VLAN than the machine? Use the
-   manual IP field at the bottom of the pair screen — broadcast
-   discovery can't cross that boundary.
+JavaScript port of **[`jura_connect`](https://github.com/makefu/jura-connect)**
+(PyPI package `jura-connect`) by **makefu**, and by extension of the
+J.O.E. Android app it was itself derived from. The Home Assistant
+integration **[`jura-connect-hass`](https://github.com/makefu/jura-connect-hass)**
+is by the same author.
 
-## Next steps
+### Image credits
 
-- Live-verify more of the 72 bundled profiles as hardware becomes available.
-- Raw maintenance counters (`@TG:43`) exist in the protocol but aren't
-  ported — the percent bank (`@TG:C0`) already covers the main "do I
-  need to clean/descale/refill soon" use case. The per-product brew
-  counter bank (`@TR:32`) is now partially ported: just the lifetime
-  total (slot 0), not the per-product breakdown — see "Capabilities"
-  below.
+**App Store banner photo**: a real Jura Z8 brewing coffee, by
+**coffee-rank** ([source](https://www.flickr.com/photos/189612330@N06/50330277776)),
+licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
+cropped from the original.
 
-## Structure
+**Driver image**: a photo of the maintainer's own paired E8.
+
+## Development
 
 ```
-app.json / app.js                    — manifest + "brew_product" flow action
-lib/crypto.js                        — cipher (model-agnostic)
-lib/protocol.js                      — TCP framing + FrameReader
-lib/discovery.js                     — UDP discovery
-lib/profile.js                       — recipe blob encoder (model-agnostic)
-lib/models.js                        — model registry: ADD a new model HERE
-lib/profiles/*.js                    — bundled product/alert data, one file per EF code (72 total)
-lib/profiles/README.md               — step-by-step: adding a new model + alert-name survey
-lib/juraClient.js                    — handshake/pair, status, brew, maintenance percent
-drivers/jura-machine/driver.js       — custom pair flow (discovery + model detection/picker)
-drivers/jura-machine/device.js       — polling, capabilities, brew method
-drivers/jura-machine/pair/*.html     — pair UI
-drivers/jura-machine/assets/icon.svg — driver icon (flow-card/capability-list icon-inner elements)
-drivers/jura-machine/assets/alarm_*.svg — custom capability icons
-drivers/jura-machine/assets/maintenance_*.svg — maintenance-percent capability icons
-drivers/jura-machine/assets/button_*.svg — brew_coffee_button/brew_espresso_button/brew_hotwater_button icons
-drivers/jura-machine/assets/images/{large,small}.png — driver image, a real photo of the E8
-drivers/jura-machine/assets/machine.svg — old illustrated driver-image source, kept for reference only
-assets/icon.svg                      — app icon source: filled coffee bean with a cut-out crease, transparent background
-assets/images/{large,small}.png      — app store banner, a real photo (credited in "Attribution")
-assets/banner.svg                    — old illustrated banner source, kept for reference only
-README.txt / README.nl.txt           — plain-text App Store listing blurb (not this file)
+npx homey app validate --level publish
+npx homey app run --remote
 ```
+
+No dependencies. Without `--remote`, the CLI asks for Docker instead.
+
+- `lib/`: protocol layer (crypto, framing, discovery) and the bundled
+  per-model profiles
+- `drivers/jura-machine/`: the driver, device, and pairing views
+
+## License
+
+MIT, see `LICENSE`.
