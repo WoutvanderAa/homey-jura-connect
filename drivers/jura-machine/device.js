@@ -112,19 +112,13 @@ class JuraMachineDevice extends Device {
     // devices paired before this rename.
     if (this.hasCapability('jura_alarm_beans')) await this.removeCapability('jura_alarm_beans').catch(this.error);
 
-    // alarm_outlet_missing/alarm_rear_cover_missing picked up their
-    // icon correctly on first add (confirmed live), but alarm_beans/
-    // alarm_tray/alarm_tray_missing didn't, despite adding the same
-    // "icon" field to their app.json capability definitions -- Homey
-    // appears to snapshot capability metadata (including icon) at the
-    // moment a capability is first added to a device, not re-read it
-    // from the manifest afterward. Devices that already had these three
-    // from an earlier version are stuck with no icon until forced to
-    // re-add. One-time migration: remove them here so the loop below
-    // re-adds them fresh with the icon this time.
-    for (const cap of ['alarm_beans', 'alarm_tray', 'alarm_tray_missing']) {
-      if (this.hasCapability(cap)) await this.removeCapability(cap).catch(this.error);
-    }
+    // Deliberately no remove/re-add migration here anymore -- the
+    // previous version did this on every single init (removing then
+    // re-adding alarm_beans/alarm_tray/alarm_tray_missing below just to
+    // pick up their icon), against Athom's own docs ("do not call
+    // removeCapability on every init!"). Any device that ever ran 0.4.1
+    // or later already has the icon from app.json's capability
+    // definitions, and Homey updates installed apps automatically.
 
     for (const cap of [
       'alarm_water',
