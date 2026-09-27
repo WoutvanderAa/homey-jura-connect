@@ -21,7 +21,7 @@ network via the J.O.E. app.
 ## Supported models
 
 All 72 models from the J.O.E. app's own catalogue are bundled, one
-profile per EF code. Verified so far:
+profile per EF code. Confirmed on real hardware so far:
 
 | Model | Profile | Verified | Source |
 |---|---|---|---|
@@ -29,6 +29,11 @@ profile per EF code. Verified so far:
 | ENA 4 (EA) | EF1013 | Pairing, coffee, espresso, water alarm, tray-missing alarm | [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
 | S8 (NAB) | EF1151 | Pairing only, with a security PIN | [GitHub issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4) |
 | E8 (EC) | EF1092 | Alarms | [Homey forum](https://community.homey.app/t/158080) |
+
+Only the fully confirmed models above, currently the E8 (EF538) and
+the ENA 4 (EF1013), appear in the app without the "experimental,
+untested" label; the S8 and E8 EC still show it, since only pairing
+or alarms have been confirmed on those two so far.
 
 Every other bundled model shows as "experimental, untested" in the
 pairing and settings picker. Does it work on your model, or not?
