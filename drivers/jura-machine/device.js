@@ -10,6 +10,11 @@ const { JuraClient } = require('../../lib/juraClient');
 // responsive rather than lagging up to a full interval behind reality.
 const POLL_INTERVAL_MS = 10000;
 
+// How long brew() waits for the machine to answer @TP: before giving up
+// -- referenced both when calling JuraClient.brew() and in the
+// BREW_NO_REPLY user message below, so the two can't drift apart.
+const BREW_TIMEOUT_MS = 8000;
+
 // Maintenance percent (@TG:C0) doesn't change fast enough to need every
 // cycle -- read it once every 30th poll (~5 min at the 10s interval
 // above) instead.
@@ -40,28 +45,6 @@ const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 
 // timer) still shows unavailable soon enough -- POLL_INTERVAL_MS apart.
 const POLL_FAIL_THRESHOLD = 3;
 
-// Alert names seen around an active brew cycle on the E8's own alert
-// table (lib/profiles/EF538.js) -- used by brew()'s post-reply fallback
-// below. heating_up alone missed a second confirmed-live false-negative
-// (reply @TB, coffee genuinely brewed) where the machine was already at
-// temperature and so never went through a heating_up phase at all.
-const BREW_IN_PROGRESS_ALERTS = [
-  'heating_up',
-  'coffee_ready',
-  'coffee_rinsing',
-  'please_wait',
-  'enjoy_product',
-  'system_filling',
-];
-
-// Confirmed live: even the widened alert list above can still miss a
-// single point-in-time check -- an espresso needing a real cold-start
-// heat-up can take longer than one snapshot 3s after the reply covers,
-// so the brew-in-progress state may not have started yet (or may have
-// already passed) at the moment we happen to look. Check a few times
-// spread out instead of once, stopping as soon as any of them matches.
-const BREW_STATUS_CHECK_ATTEMPTS = 3;
-const BREW_STATUS_CHECK_INTERVAL_MS = 3000;
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
     return 'Machine appears to be off or unreachable on the network.';
@@ -649,44 +632,41 @@ class JuraMachineDevice extends Device {
       }
     }
     await this._connectIfNeeded();
-    const reply = await this._client.brew(productName, finalOverrides, { retry: true, timeoutMs: 8000 });
     const { isBrewAccept } = require('../../lib/juraClient');
+    let reply;
+    try {
+      reply = await this._client.brew(productName, finalOverrides, { retry: true, timeoutMs: BREW_TIMEOUT_MS });
+    } catch (err) {
+      // JuraClient.brew() throws a coded BrewError for every failure while
+      // talking to the machine (other errors, such as an unknown product,
+      // are passed on as-is) -- log the raw message (useful in a
+      // diagnostics report) and surface a plain-language reason to the
+      // user instead of the technical one.
+      this.error('Brew failed:', err.message);
+      if (err.code === 'BREW_NO_REPLY') {
+        throw new Error(
+          `The machine did not respond to the brew command within ${BREW_TIMEOUT_MS / 1000} seconds. It may only have woken up from energy saving: check the machine before trying again, so you don't get a second drink.`
+        );
+      }
+      if (err.code === 'BREW_REFUSED') {
+        throw new Error(
+          `The machine refused the brew command (reply: ${err.reply}). It may be busy or need attention: check water, beans and the drip tray.`
+        );
+      }
+      if (err.code === 'BREW_CONNECTION_LOST') {
+        throw new Error('The connection to the machine dropped during the brew command. Check whether it started before trying again.');
+      }
+      throw err;
+    }
+    // Defensive: JuraClient.brew() should never resolve with anything
+    // other than an accepted reply (see its own doc comment) -- but if
+    // that contract ever slips, still refuse a not-accepted reply here
+    // rather than reporting a brew that didn't actually happen as a
+    // success.
     if (!isBrewAccept(reply)) {
-      // Confirmed live on a real E8, twice now, with two different
-      // unrecognised replies (@hu:800, then @TB) both times a genuine
-      // successful brew: the machine doesn't always confirm @TP: with a
-      // @tp:-prefixed frame. Rather than loosening isBrewAccept itself
-      // (risky -- we don't actually know every rejection reply looks
-      // like @tp:00 either, on this or the other 71 profiles, so that
-      // could turn a real rejection into a silent false "success"),
-      // fall back to asking the machine itself whether anything is
-      // happening. heating_up alone missed the @TB case: the machine
-      // was already at temperature, so it never went through a
-      // heating_up phase for that brew at all. Check the fuller set of
-      // brew-cycle-adjacent alerts instead -- still a pure add-on that
-      // can only *suppress* a false error, never manufacture a false
-      // success, and still a no-op on profiles that don't define these
-      // alert names (same as any other alarm a machine can't report).
-      // A single snapshot can still miss the window (confirmed live: an
-      // espresso needing a real cold-start heat-up outlasted one check),
-      // so try a few times spread out rather than looking just once.
-      let matchedAlert = null;
-      for (let attempt = 1; attempt <= BREW_STATUS_CHECK_ATTEMPTS && !matchedAlert; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, BREW_STATUS_CHECK_INTERVAL_MS));
-        try {
-          const status = await this._client.readStatus(6000);
-          matchedAlert = BREW_IN_PROGRESS_ALERTS.find((a) => status.activeAlerts.includes(a)) || null;
-        } catch (err) {
-          this.error(
-            `Post-brew status check ${attempt}/${BREW_STATUS_CHECK_ATTEMPTS} failed (non-fatal):`,
-            err.message
-          );
-        }
-      }
-      if (!matchedAlert) {
-        throw new Error(`Machine did not accept the brew command (reply: ${reply})`);
-      }
-      this.log(`Brew accepted despite an unrecognised reply (${reply}) -- machine shows "${matchedAlert}"`);
+      throw new Error(
+        `The machine refused the brew command (reply: ${reply}). It may be busy or need attention: check water, beans and the drip tray.`
+      );
     }
     return reply;
   }
