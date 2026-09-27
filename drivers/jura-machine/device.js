@@ -447,9 +447,19 @@ class JuraMachineDevice extends Device {
     // and onSettings's deferred callback (see onSettings above) can
     // each end up calling this, so this needs to be safe to call
     // regardless of whether a caller already stopped the previous one.
+    // The interval is set BEFORE awaiting the first _poll(), not after:
+    // that first poll (a connect plus a readStatus) can take up to
+    // ~13s, and a second _startPolling() call landing in that window
+    // would otherwise stop and replace this._pollTimer before the first
+    // call's own setInterval ever ran, orphaning that first interval --
+    // _stopPolling()/onDeleted() would then never see or clear it
+    // again. Setting the interval first means two overlapping calls
+    // always leave exactly one interval behind, whichever call's
+    // setInterval ran last. _poll()'s own `_polling` guard already
+    // keeps the calls this interval makes from overlapping each other.
     this._stopPolling();
-    await this._poll();
     this._pollTimer = this.homey.setInterval(() => this._poll(), POLL_INTERVAL_MS);
+    await this._poll();
   }
 
   _stopPolling() {
