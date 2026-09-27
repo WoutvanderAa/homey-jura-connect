@@ -844,8 +844,8 @@
                 "nl": "Geldige koffiesterkteniveaus op deze machine"
               },
               "hint": {
-                "en": "Read-only, filled in automatically from this specific machine's own recipe data. Enter one of these below.",
-                "nl": "Alleen-lezen, automatisch ingevuld op basis van de receptgegevens van deze specifieke machine. Vul hieronder één van deze in."
+                "en": "Read-only, filled in from this machine's own recipe data. Shows which number to enter below for each strength level.",
+                "nl": "Alleen-lezen, ingevuld op basis van de receptgegevens van deze machine. Laat zien welk getal je hieronder per sterkteniveau invult."
               },
               "value": "—"
             },
@@ -857,8 +857,8 @@
                 "nl": "Koffiesterkte (niveau)"
               },
               "hint": {
-                "en": "Overrides the built-in strength level for the Coffee button and flow action. Leave at 0 to use the machine's own default instead. See \"Valid coffee strength levels\" above for what your specific machine accepts — an out-of-range level shows a clear error when brewing rather than silently doing the wrong thing.",
-                "nl": "Overschrijft het ingebouwde sterkteniveau voor de Koffie-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf. Zie \"Geldige koffiesterkteniveaus\" hierboven voor wat jouw specifieke machine accepteert — een niveau buiten bereik geeft een duidelijke foutmelding bij het zetten in plaats van stilzwijgend iets verkeerds te doen."
+                "en": "Overrides the strength for the Coffee button, and for flow actions that brew coffee without their own strength. 0 = the default strength from this machine's profile (the app can't read what you set on the machine itself). Enter the number that \"Valid coffee strength levels\" above shows for the level you want; a number this machine doesn't have is rejected when you save.",
+                "nl": "Overschrijft de sterkte voor de Koffie-knop, en voor flow-acties die koffie zetten zonder eigen sterkte. 0 = de standaardsterkte uit het profiel van deze machine (wat je op de machine zelf instelt, kan de app niet uitlezen). Vul het getal in dat \"Geldige koffiesterkteniveaus\" hierboven bij het gewenste niveau toont; een getal dat deze machine niet kent, wordt bij opslaan geweigerd."
               },
               "value": 0,
               "min": 0,
@@ -872,8 +872,8 @@
                 "nl": "Geldige espressosterkteniveaus op deze machine"
               },
               "hint": {
-                "en": "Read-only, filled in automatically from this specific machine's own recipe data. Enter one of these below.",
-                "nl": "Alleen-lezen, automatisch ingevuld op basis van de receptgegevens van deze specifieke machine. Vul hieronder één van deze in."
+                "en": "Read-only, filled in from this machine's own recipe data. Shows which number to enter below for each strength level.",
+                "nl": "Alleen-lezen, ingevuld op basis van de receptgegevens van deze machine. Laat zien welk getal je hieronder per sterkteniveau invult."
               },
               "value": "—"
             },
@@ -885,8 +885,8 @@
                 "nl": "Espressosterkte (niveau)"
               },
               "hint": {
-                "en": "Overrides the built-in strength level for the Espresso button and flow action. Leave at 0 to use the machine's own default instead. See \"Valid espresso strength levels\" above for what your specific machine accepts — an out-of-range level shows a clear error when brewing rather than silently doing the wrong thing.",
-                "nl": "Overschrijft het ingebouwde sterkteniveau voor de Espresso-knop en -flow-actie. Laat op 0 staan voor de standaardwaarde van de machine zelf. Zie \"Geldige espressosterkteniveaus\" hierboven voor wat jouw specifieke machine accepteert — een niveau buiten bereik geeft een duidelijke foutmelding bij het zetten in plaats van stilzwijgend iets verkeerds te doen."
+                "en": "Overrides the strength for the Espresso button, and for flow actions that brew espresso without their own strength. 0 = the default strength from this machine's profile (the app can't read what you set on the machine itself). Enter the number that \"Valid espresso strength levels\" above shows for the level you want; a number this machine doesn't have is rejected when you save.",
+                "nl": "Overschrijft de sterkte voor de Espresso-knop, en voor flow-acties die espresso zetten zonder eigen sterkte. 0 = de standaardsterkte uit het profiel van deze machine (wat je op de machine zelf instelt, kan de app niet uitlezen). Vul het getal in dat \"Geldige espressosterkteniveaus\" hierboven bij het gewenste niveau toont; een getal dat deze machine niet kent, wordt bij opslaan geweigerd."
               },
               "value": 0,
               "min": 0,

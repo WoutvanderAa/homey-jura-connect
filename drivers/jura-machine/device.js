@@ -2,6 +2,7 @@
 
 const { Device } = require('homey');
 const models = require('../../lib/models');
+const profileLib = require('../../lib/profile');
 const { JuraClient } = require('../../lib/juraClient');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
@@ -88,27 +89,6 @@ function resolveHotwaterProductName(profile) {
   if (names.has('hotwater_portion')) return 'hotwater_portion';
   if (names.has('hotwater_portion_normal')) return 'hotwater_portion_normal';
   return null;
-}
-
-/**
- * Human-readable summary of a coffee_strength param's valid values on
- * this specific device's profile, for the read-only *_strength_options
- * settings labels -- there's no per-device dynamic dropdown in Homey's
- * static settings schema (see brew_product's flow-action strength
- * argument for where that *is* possible), so this is the next best
- * thing: tell the user exactly what to type into the number field next
- * to it, instead of them having to guess or trigger an error first.
- * A pure numeric scale (the common case, e.g. 1..10) collapses to a
- * range; a named scale (e.g. mild/normal/strong) lists the names.
- */
-function formatStrengthOptions(items) {
-  if (!items || items.length === 0) return '—';
-  const allNumeric = items.every((it) => /^\d+$/.test(it.name));
-  if (allNumeric) {
-    const nums = items.map((it) => Number(it.name));
-    return `${Math.min(...nums)} to ${Math.max(...nums)}`;
-  }
-  return items.map((it) => it.name.replace(/_/g, ' ')).join(', ');
 }
 
 class JuraMachineDevice extends Device {
@@ -266,8 +246,11 @@ class JuraMachineDevice extends Device {
   /**
    * Fill in the read-only coffee_strength_options/espresso_strength_options
    * settings labels with this specific device's own valid strength
-   * values (see formatStrengthOptions) -- the closest thing to a
-   * per-device dropdown that Homey's static settings schema allows.
+   * values (see lib/profile.js's describeStrengthScale) -- the closest
+   * thing to a per-device dropdown that Homey's static settings schema
+   * allows. Shows the number to type into coffee_strength/
+   * espresso_strength below, not the raw wire byte -- see
+   * strengthScale's own doc comment for why those two can differ.
    * Re-run from onSettings when profile_code changes.
    */
   async _syncStrengthOptionLabels() {
@@ -275,7 +258,7 @@ class JuraMachineDevice extends Device {
     const optionsFor = (productName) => {
       const product = profile.products.find((p) => p.name === productName);
       const param = product && product.params.find((p) => p.kind === 'coffee_strength');
-      return param ? formatStrengthOptions(param.items) : '—';
+      return profileLib.describeStrengthScale(param);
     };
     this.setSettings({
       coffee_strength_options: optionsFor('coffee'),
@@ -293,6 +276,31 @@ class JuraMachineDevice extends Device {
   }
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
+    // Validate first, before any of the side effects below run --
+    // Homey surfaces a thrown Error here to the user and keeps the old
+    // settings, so a rejected strength level shouldn't leave a
+    // reconnect or a capability sync half-applied for a save that never
+    // actually took effect. Resolved against `newSettings` (not yet
+    // reflected in this.getSettings()/_resolveProfile()'s own default),
+    // since a profile_code change in this same save can itself be what
+    // makes the strength invalid.
+    const newProfile = this._resolveProfile(newSettings);
+    for (const [settingKey, productName, label] of [
+      ['coffee_strength', 'coffee', 'Coffee'],
+      ['espresso_strength', 'espresso', 'Espresso'],
+    ]) {
+      const level = newSettings[settingKey];
+      if (level > 0 && (changedKeys.includes(settingKey) || changedKeys.includes('profile_code'))) {
+        const product = newProfile.products.find((p) => p.name === productName);
+        const param = product && product.params.find((p) => p.kind === 'coffee_strength');
+        if (!profileLib.strengthScale(param).levels.some((l) => l.level === level)) {
+          throw new Error(
+            `${label} strength ${level} isn't available on this machine. Valid: ${profileLib.describeStrengthScale(param)}.`
+          );
+        }
+      }
+    }
+
     if (changedKeys.includes('profile_code')) {
       // A corrected profile can add or remove hot water support, and
       // changes which strength values are valid.
@@ -310,10 +318,16 @@ class JuraMachineDevice extends Device {
 
   // ---------- connection ----------
 
-  /** The profile for this device's machine -- settings override the store. */
-  _resolveProfile() {
+  /**
+   * The profile for this device's machine -- settings override the
+   * store. Takes an explicit `settings` object (defaulting to the
+   * already-saved this.getSettings()) so onSettings can resolve against
+   * `newSettings` -- the settings Homey is about to save, not yet
+   * reflected in this.getSettings() -- to validate a profile_code
+   * change before it takes effect.
+   */
+  _resolveProfile(settings = this.getSettings()) {
     const store = this.getStore();
-    const settings = this.getSettings();
     const profileCode = settings.profile_code || store.profileCode || models.DEFAULT_PROFILE_CODE;
     return models.getProfile(profileCode);
   }
@@ -527,10 +541,12 @@ class JuraMachineDevice extends Device {
    * hotwater_ml device settings are the workaround: filled in, they
    * override the default here for both the quick buttons and this same
    * method's flow-action route. Strength's valid range varies by
-   * machine (most 1-10, some fewer) -- encodeParam() in lib/profile.js
-   * rejects an out-of-range level for the specific device's profile
-   * with a clear error, rather than this method trying to know every
-   * machine's own scale.
+   * machine (most 1-10, some fewer), and on a few profiles the level
+   * number the machine displays doesn't match the XML's raw wire byte
+   * at all -- see lib/profile.js's strengthScale. strengthLevelToWire()
+   * translates the displayed level to that wire byte and rejects one
+   * this device's profile doesn't have, rather than this method trying
+   * to know every machine's own scale.
    */
   async brew(productName, overrides = {}) {
     const finalOverrides = { ...overrides };
@@ -548,10 +564,18 @@ class JuraMachineDevice extends Device {
       }
     }
     if (!('coffee_strength' in finalOverrides)) {
+      // Translates the displayed level (what the user typed, and what
+      // _syncStrengthOptionLabels told them was valid) to the actual
+      // wire byte -- see strengthLevelToWire's own doc comment for why
+      // a plain number can't just be passed through to encodeParam.
+      const strengthParam = (name) => {
+        const product = this._resolveProfile().products.find((p) => p.name === name);
+        return product && product.params.find((p) => p.kind === 'coffee_strength');
+      };
       if (productName === 'coffee' && settings.coffee_strength > 0) {
-        finalOverrides.coffee_strength = settings.coffee_strength;
+        finalOverrides.coffee_strength = profileLib.strengthLevelToWire(strengthParam('coffee'), settings.coffee_strength);
       } else if (productName === 'espresso' && settings.espresso_strength > 0) {
-        finalOverrides.coffee_strength = settings.espresso_strength;
+        finalOverrides.coffee_strength = profileLib.strengthLevelToWire(strengthParam('espresso'), settings.espresso_strength);
       }
     }
     await this._connectIfNeeded();
