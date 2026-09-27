@@ -54,8 +54,19 @@ class JuraMachineDriver extends Driver {
     // navigates to the connect view -- storing the pick here (rather
     // than passing it through 'pair') because each pair *.html is a
     // fresh page load and doesn't retain JS state across showView().
+    // Re-derives detectedModel from the matching *raw* entry in
+    // `discovered` rather than trusting `selected` as-is: `discovered`
+    // never carried detectedModel to begin with (only the mapped copy
+    // the 'discover' handler above returned to the pair view did), so
+    // without this, get_selected_machine below always came back with no
+    // detectedModel even for an auto-detected machine -- connect.html
+    // then always fell back to the manual picker instead of skipping
+    // straight to the handshake.
     session.setHandler('select_machine', async (selected) => {
-      selectedMachine = discovered.find((m) => m.address === selected.address) || selected;
+      const found = discovered.find((m) => m.address === selected.address);
+      selectedMachine = found
+        ? { ...found, detectedModel: models.modelForArticle(found.articleNumber) }
+        : selected;
       return true;
     });
 

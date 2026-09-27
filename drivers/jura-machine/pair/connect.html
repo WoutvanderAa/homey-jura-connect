@@ -151,6 +151,19 @@
 
     const select = document.getElementById('model-select');
     select.innerHTML = '';
+
+    // Placeholder first, disabled and preselected, so nothing is picked
+    // by default -- without it the dropdown's first real entry
+    // (currently "C3 (EA) (EF1089)") was silently selected, and
+    // Continue would pair against that guess if the user didn't notice
+    // the list needed a deliberate choice.
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.textContent = 'Choose your machine model';
+    select.appendChild(placeholder);
+
     models.forEach((m) => {
       const opt = document.createElement('option');
       opt.value = m.profileCode;
@@ -158,7 +171,13 @@
       select.appendChild(opt);
     });
 
+    const continueButton = document.getElementById('continue');
+    continueButton.disabled = true;
+    select.onchange = () => {
+      continueButton.disabled = !select.value;
+    };
     document.getElementById('continue').onclick = () => {
+      if (!select.value) return; // no-op: same guard as the disabled state above
       chosenProfileCode = select.value;
       runHandshake('');
     };
