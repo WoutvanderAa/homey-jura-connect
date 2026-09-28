@@ -97,5 +97,9 @@
   "0.12.1": {
     "en": "Pairing now recognises your model automatically, strength settings follow your machine's own scale, brewing no longer reports false failures or sends a second brew command, and profile or IP changes apply right away.",
     "nl": "Koppelen herkent je model nu automatisch, sterkte-instellingen volgen de schaal van je machine, zetten meldt geen onterechte fout meer en stuurt geen tweede opdracht, en profiel- of IP-wijzigingen werken direct."
+  },
+  "0.12.2": {
+    "en": "Brewing several drinks in a row from a flow works again: the app no longer mistakes the machine's quiet period while brewing for a lost connection.",
+    "nl": "Meerdere dranken achter elkaar zetten via een flow werkt weer: de app ziet de stille periode tijdens het zetten niet meer aan voor een verbroken verbinding."
   }
 }
