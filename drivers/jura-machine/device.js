@@ -34,11 +34,13 @@ const MAINTENANCE_TRIGGER_IDS = {
 // socket error code.
 const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH']);
 
-// Confirmed live: the machine can become briefly unreachable for
-// several polls in a row while it's physically brewing (grinding/
-// pumping/heating draws enough power to make its own WiFi module
-// unresponsive for a bit) -- reproduced with no relation to anything
-// this app sends, i.e. not something fixable from the client side.
+// Seen live: polls used to fail several times in a row while the
+// machine was physically brewing. That was first put down to the WiFi
+// module dropping out under load, but the most likely explanation is
+// that the @TF: status broadcast itself pauses for the length of a
+// brew (see _readStatusOnce in lib/juraClient.js). Since 0.12.2 any
+// other frame counts as a sign of life there, so only genuine silence
+// still counts as a failed poll here.
 // Only flip to unavailable after this many *consecutive* failed polls,
 // so one such hiccup doesn't flicker the device tile every time
 // something brews. A real outage (powered off, out of range, auto-off
@@ -479,7 +481,23 @@ class JuraMachineDevice extends Device {
     this._polling = true;
     try {
       await this._connectIfNeeded();
-      const status = await this._client.readStatus(8000);
+      let status;
+      try {
+        status = await this._client.readStatus(8000);
+      } catch (err) {
+        if (err.code === 'STATUS_BUSY') {
+          // Almost certainly just brewing (see StatusUnavailable in
+          // lib/juraClient.js), not a dead connection -- so don't close
+          // it, don't touch capabilities or the warning, don't count
+          // this cycle, and don't run the maintenance/brew-count reads
+          // below. Just wait for the next poll to catch a @TF: once the
+          // machine settles back down.
+          this._pollFailCount = 0;
+          this.log('No status this cycle (machine busy):', err.message);
+          return;
+        }
+        throw err;
+      }
       this._pollFailCount = 0;
       this.log('Status:', status.activeAlerts.join(', ') || '(none)');
 
