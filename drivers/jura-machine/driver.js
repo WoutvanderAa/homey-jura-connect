@@ -96,7 +96,16 @@ class JuraMachineDriver extends Driver {
       const profile = models.getProfile(profileCode);
       const connId = JuraClient.randomConnId();
 
-      const client = new JuraClient(machine.address, { connId, profile, pin: pin || '' });
+      // The frame log runs during pairing too. The handler's own argument
+      // ({ pin }) and its return value (the auth hash, the pin) are never
+      // logged: the lines only come from FrameLog, which redacts the
+      // handshake.
+      const client = new JuraClient(machine.address, {
+        connId,
+        profile,
+        pin: pin || '',
+        logger: (line) => this.log('[frame]', line),
+      });
 
       try {
         const result = await client.pair(60000, (msg) => {

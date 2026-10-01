@@ -4,6 +4,7 @@ const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
 const { JuraClient, AUTH_HASH_RE } = require('../../lib/juraClient');
+const { redactFrame, clipText } = require('../../lib/frameLog');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
 // onoff and available/unavailable -- kept short so those feel
@@ -47,11 +48,44 @@ const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 
 // timer) still shows unavailable soon enough -- POLL_INTERVAL_MS apart.
 const POLL_FAIL_THRESHOLD = 3;
 
+// How often _poll() writes the one-line health summary to the log. There is
+// no timer for it: the end of every poll checks whether this long has passed
+// since the previous line (see _logHealth).
+const HEALTH_EVERY_MS = 300000;
+
+// Text that came from the machine (a brew reply, the reason a connection
+// ended) goes into a user message or a log line only after redactFrame and
+// cut to this length, so a frame that quotes a secret, holds a line break or
+// runs on for kilobytes can neither leak, fake a log line nor fill a report.
+const MACHINE_TEXT_MAX = 120;
+
+// The longest text handed to setUnavailable, which Homey shows on the tile.
+const UNAVAILABLE_TEXT_MAX = 200;
+
+// Log lines that carry an error message get more room than text shown to a
+// user: the message is mostly our own, and a cut one hides the cause.
+const LOG_TEXT_MAX = 300;
+
+// The figures of takeStats() that add up over clients (see _bankStats). The
+// longest @TF: gap is a maximum, not a sum, so it is handled apart; the
+// average follows from tfGapSumMs and tfGapCount.
+const BANKED_SUM_KEYS = ['tf', 'tv', 'hu', 'markers', 'other', 'tfGapCount', 'tfGapSumMs', 'droppedReplies'];
+
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
     return 'Machine appears to be off or unreachable on the network.';
   }
   return err.message;
+}
+
+/** Text that may quote a frame, made safe to show or log: see MACHINE_TEXT_MAX. */
+function safeText(text, max = MACHINE_TEXT_MAX) {
+  return clipText(redactFrame(text), max);
+}
+
+/** The frame figures of clients that are gone: all zero. */
+function emptyBankedStats() {
+  return { tf: 0, tv: 0, hu: 0, markers: 0, other: 0, tfGapCount: 0, tfGapSumMs: 0, tfMaxMs: 0, droppedReplies: 0 };
 }
 
 /**
@@ -149,6 +183,20 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
     this._pollFailCount = 0;
     this._polling = false;
+    // For the health line (_logHealth): polls by outcome and reconnects since
+    // the previous line, when that line was written, and when the current
+    // connection was made.
+    this._healthPolls = { ok: 0, busy: 0, fail: 0 };
+    this._healthReconnects = 0;
+    this._lastHealthAt = Date.now();
+    this._hasConnected = false;
+    this._sessionStartedAt = null;
+    // Why the last client that _poll() threw away had ended; kept until the
+    // next one, as a state.
+    this._lastCloseReason = '';
+    // The frame figures of clients thrown away since the previous health line
+    // (see _bankStats), added to those of the current client in _logHealth.
+    this._healthBanked = emptyBankedStats();
     // Pending onSettings deferred-apply timer, if any -- see onSettings
     // and _startPolling below for why settings changes need this at all.
     this._applySettingsTimer = null;
@@ -189,9 +237,11 @@ class JuraMachineDevice extends Device {
     // hot water. brew_product (the flow action) stays the flexible,
     // per-device route for anything else a specific machine supports.
     this.registerCapabilityListener('brew_coffee_button', async () => {
+      this.log('button brew_coffee_button');
       await this.brew('coffee');
     });
     this.registerCapabilityListener('brew_espresso_button', async () => {
+      this.log('button brew_espresso_button');
       await this.brew('espresso');
     });
     // Safe to register even on a device that doesn't have this
@@ -199,6 +249,7 @@ class JuraMachineDevice extends Device {
     // that per-device) -- Homey simply never fires a listener for a
     // capability a device doesn't have.
     this.registerCapabilityListener('brew_hotwater_button', async () => {
+      this.log('button brew_hotwater_button');
       await this.brew(this._hotwaterProductName);
     });
 
@@ -273,7 +324,10 @@ class JuraMachineDevice extends Device {
     if (this._applySettingsTimer) this.homey.clearTimeout(this._applySettingsTimer);
     this._pendingSettingsApply.labels = false;
     this._pendingSettingsApply.reconnect = false;
-    if (this._client) await this._client.close().catch(() => {});
+    if (this._client) {
+      this._bankStats(this._client);
+      await this._client.close().catch(() => {});
+    }
   }
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
@@ -313,7 +367,10 @@ class JuraMachineDevice extends Device {
     if (changedKeys.includes('address') || changedKeys.includes('profile_code')) {
       this.log('Connection settings changed, reconnecting...');
       this._stopPolling();
-      if (this._client) await this._client.close().catch(() => {});
+      if (this._client) {
+        this._bankStats(this._client);
+        await this._client.close().catch(() => {});
+      }
       this._client = null;
     }
 
@@ -396,6 +453,9 @@ class JuraMachineDevice extends Device {
       // again on every reconnect, not only during pairing.
       pin: store.pin || '',
       profile,
+      // Synchronous on purpose: FrameLog hands every line over right away and
+      // does not wait for it. The lines are redacted and cut before they get here.
+      logger: (line) => this.log('[frame]', line),
     });
   }
 
@@ -455,6 +515,10 @@ class JuraMachineDevice extends Device {
     } else if (result.hashLength !== undefined) {
       this.error(`Machine sent an unusable auth token (length ${result.hashLength}); the stored hash was kept.`);
     }
+    // A connection that comes after an earlier one is a reconnect.
+    if (this._hasConnected) this._healthReconnects += 1;
+    this._hasConnected = true;
+    this._sessionStartedAt = Date.now();
     this.setAvailable().catch(this.error);
   }
 
@@ -509,12 +573,14 @@ class JuraMachineDevice extends Device {
           // below. Just wait for the next poll to catch a @TF: once the
           // machine settles back down.
           this._pollFailCount = 0;
+          this._healthPolls.busy += 1;
           this.log('No status this cycle (machine busy):', err.message);
           return;
         }
         throw err;
       }
       this._pollFailCount = 0;
+      this._healthPolls.ok += 1;
       this.log('Status:', status.activeAlerts.join(', ') || '(none)');
 
       // onoff reflects "not in standby" -- the closest read-only analogue
@@ -579,7 +645,7 @@ class JuraMachineDevice extends Device {
         } catch (err) {
           // Not every profile's firmware answers @TG:C0 -- don't let this
           // take the whole device unavailable over an optional reading.
-          this.error('Maintenance percent read failed (non-fatal):', err.message);
+          this.error('Maintenance percent read failed (non-fatal):', safeText(err.message, LOG_TEXT_MAX));
         }
 
         // Lifetime brew total (@TR:32 page 0) -- shown as a read-only
@@ -597,23 +663,105 @@ class JuraMachineDevice extends Device {
           if (/does not implement the @TR:32/.test(err.message)) {
             this.setSettings({ total_brews: 'Not supported by this machine' }).catch(this.error);
           }
-          this.error('Total brew count read failed (non-fatal):', err.message);
+          this.error('Total brew count read failed (non-fatal):', safeText(err.message, LOG_TEXT_MAX));
         }
       }
     } catch (err) {
       this._pollFailCount += 1;
-      this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, err.message);
+      this._healthPolls.fail += 1;
+      this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, safeText(err.message, LOG_TEXT_MAX));
       // Only flip the device tile to unavailable once a hiccup has
       // outlasted a couple of poll cycles -- see POLL_FAIL_THRESHOLD.
       if (this._pollFailCount >= POLL_FAIL_THRESHOLD) {
-        this.setUnavailable(friendlyPollError(err)).catch(this.error);
+        // The message can quote a frame (redactFrame) and goes on the tile,
+        // so it is cut as well.
+        this.setUnavailable(safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX)).catch(this.error);
       }
       if (this._client) {
+        // The next client starts without a close reason, so keep this one for
+        // the health line (see _logHealth) before the client is thrown away.
+        this._lastCloseReason = safeText((this._client.lastCloseReason && this._client.lastCloseReason.message) || err.message);
+        // Its frame figures are not lost with it either, see _bankStats.
+        this._bankStats(this._client);
         await this._client.close().catch(() => {});
         this._client = null;
       }
     } finally {
       this._polling = false;
+      this._logHealth();
+    }
+  }
+
+  /**
+   * Take the frame figures of a client that is about to be closed and thrown
+   * away (a failed poll, a settings change, a deleted device) and add them to
+   * `_healthBanked`. The next client starts from zero, so without this a
+   * connection that keeps dropping would show a health line with nothing in
+   * it. Never throws: it runs while a client is being cleaned up.
+   * @param {JuraClient} client
+   */
+  _bankStats(client) {
+    try {
+      const stats = client.takeStats();
+      const banked = this._healthBanked;
+      for (const key of BANKED_SUM_KEYS) banked[key] += stats[key];
+      banked.tfMaxMs = Math.max(banked.tfMaxMs, stats.tfMaxMs);
+    } catch (err) {
+      this.error('Health stats failed:', err.message);
+    }
+  }
+
+  /**
+   * Once per HEALTH_EVERY_MS, write one line that sums up how the connection
+   * has been doing since the previous one. Called at the end of every poll
+   * and does nothing until that much time has passed, so no timer is needed.
+   * Fixed shape, so a report can be searched and parsed:
+   *
+   *   health polls=ok:N,busy:N,fail:N reconnects=N session=Ns tf=N tv=N hu=N
+   *   markers=N other=N tfAvgMs=N tfMaxMs=N dropped=N close="..."
+   *
+   * (one line; broken here for width). Everything counts the time since the
+   * previous health line, except `session`, the age of the current connection
+   * (0 when there is none). `close` is the reason the connection last ended,
+   * as JSON text: the reason of the current client if it has one, else the
+   * one _poll() kept from the client it threw away.
+   *
+   * The frame figures cover every client of that time: the current one, from
+   * JuraClient.takeStats() (which holds nothing that belongs to the
+   * handshake), plus those of clients thrown away since (`_healthBanked`,
+   * see _bankStats). Counts and `dropped` are added up, `tfMaxMs` is the
+   * largest of them, and `tfAvgMs` is the total of all @TF: gaps over their
+   * number, not an average of averages. With no client right now (the last
+   * poll failed and closed it) only the banked figures count. The banked
+   * figures start over after the line is written, like the poll counts.
+   * Never throws: a problem with this line must not break polling.
+   */
+  _logHealth() {
+    try {
+      const now = Date.now();
+      if (now - this._lastHealthAt < HEALTH_EVERY_MS) return;
+      this._lastHealthAt = now;
+      const current = this._client ? this._client.takeStats() : null;
+      const banked = this._healthBanked;
+      const total = (key) => banked[key] + (current ? current[key] : 0);
+      const gapCount = total('tfGapCount');
+      const tfAvgMs = gapCount > 0 ? Math.round(total('tfGapSumMs') / gapCount) : 0;
+      const tfMaxMs = Math.max(banked.tfMaxMs, current ? current.tfMaxMs : 0);
+      const closeReason = (current && current.lastCloseReason) || this._lastCloseReason;
+      const polls = this._healthPolls;
+      const reconnects = this._healthReconnects;
+      this._healthBanked = emptyBankedStats();
+      this._healthPolls = { ok: 0, busy: 0, fail: 0 };
+      this._healthReconnects = 0;
+      const sessionS = this._client && this._sessionStartedAt ? Math.round((now - this._sessionStartedAt) / 1000) : 0;
+      this.log(
+        `health polls=ok:${polls.ok},busy:${polls.busy},fail:${polls.fail} reconnects=${reconnects} session=${sessionS}s ` +
+          `tf=${total('tf')} tv=${total('tv')} hu=${total('hu')} markers=${total('markers')} other=${total('other')} ` +
+          `tfAvgMs=${tfAvgMs} tfMaxMs=${tfMaxMs} dropped=${total('droppedReplies')} ` +
+          `close=${JSON.stringify(safeText(closeReason))}`
+      );
+    } catch (err) {
+      this.error('Health line failed:', err.message);
     }
   }
 
@@ -686,7 +834,7 @@ class JuraMachineDevice extends Device {
       // are passed on as-is) -- log the raw message (useful in a
       // diagnostics report) and surface a plain-language reason to the
       // user instead of the technical one.
-      this.error('Brew failed:', err.message);
+      this.error('Brew failed:', safeText(err.message, LOG_TEXT_MAX));
       if (err.code === 'BREW_NO_REPLY') {
         throw new Error(
           `The machine did not respond to the brew command within ${BREW_TIMEOUT_MS / 1000} seconds. It may only have woken up from energy saving: check the machine before trying again, so you don't get a second drink.`
@@ -694,7 +842,7 @@ class JuraMachineDevice extends Device {
       }
       if (err.code === 'BREW_REFUSED') {
         throw new Error(
-          `The machine refused the brew command (reply: ${err.reply}). It may be busy or need attention: check water, beans and the drip tray.`
+          `The machine refused the brew command (reply: ${safeText(err.reply)}). It may be busy or need attention: check water, beans and the drip tray.`
         );
       }
       if (err.code === 'BREW_CONNECTION_LOST') {
@@ -709,9 +857,10 @@ class JuraMachineDevice extends Device {
     // success.
     if (!isBrewAccept(reply)) {
       throw new Error(
-        `The machine refused the brew command (reply: ${reply}). It may be busy or need attention: check water, beans and the drip tray.`
+        `The machine refused the brew command (reply: ${safeText(reply)}). It may be busy or need attention: check water, beans and the drip tray.`
       );
     }
+    this.log(`Brew accepted (${safeText(reply)})`);
     return reply;
   }
 
