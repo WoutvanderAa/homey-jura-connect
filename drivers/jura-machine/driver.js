@@ -108,6 +108,11 @@ class JuraMachineDriver extends Driver {
           throw err;
         }
         if (!client.authHash) {
+          if (result.hashLength !== undefined) {
+            throw new Error(
+              `Machine accepted pairing but sent an unusable token (length ${result.hashLength}). Please report this.`
+            );
+          }
           throw new Error('Machine accepted pairing but returned no auth hash — please retry.');
         }
         return {

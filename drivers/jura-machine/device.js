@@ -3,7 +3,7 @@
 const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
-const { JuraClient } = require('../../lib/juraClient');
+const { JuraClient, AUTH_HASH_RE } = require('../../lib/juraClient');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
 // onoff and available/unavailable -- kept short so those feel
@@ -436,8 +436,24 @@ class JuraMachineDevice extends Device {
         `Handshake rejected (${result.state}). If this persists, remove and re-pair the device.`
       );
     }
-    if (result.newHash && result.newHash !== this.getStoreValue('authHash')) {
-      await this.setStoreValue('authHash', result.newHash).catch(this.error);
+    const storedHash = this.getStoreValue('authHash') || '';
+    if (result.newHash && result.newHash !== storedHash) {
+      // newHash is already a hex token of 16 to 128 characters (see
+      // classifyHandshakeReply). Store it when it is the documented 64
+      // hex, or when it has the same length as the token this machine
+      // gave at pairing -- a machine with a different token length that
+      // rotates it on reconnect must not be locked out, while a damaged
+      // frame is very unlikely to match the stored length exactly.
+      if (AUTH_HASH_RE.test(result.newHash) || result.newHash.length === storedHash.length) {
+        await this.setStoreValue('authHash', result.newHash).catch(this.error);
+      } else {
+        // Only the length is logged, never the token itself.
+        this.error(
+          `Machine sent an auth token of ${result.newHash.length} characters, not 64 hex and not the length of the stored one; the stored hash was kept.`
+        );
+      }
+    } else if (result.hashLength !== undefined) {
+      this.error(`Machine sent an unusable auth token (length ${result.hashLength}); the stored hash was kept.`);
     }
     this.setAvailable().catch(this.error);
   }
