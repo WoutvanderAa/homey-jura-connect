@@ -42,11 +42,55 @@ const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 
 // brew (see _readStatusOnce in lib/juraClient.js). Since 0.12.2 any
 // other frame counts as a sign of life there, so only genuine silence
 // still counts as a failed poll here.
-// Only flip to unavailable after this many *consecutive* failed polls,
-// so one such hiccup doesn't flicker the device tile every time
-// something brews. A real outage (powered off, out of range, auto-off
-// timer) still shows unavailable soon enough -- POLL_INTERVAL_MS apart.
+// Since 0.13.0 this no longer decides anything: the tile goes unavailable
+// on time without a successful poll (TIMING.UNAVAILABLE_AFTER_MS below), not
+// on a number of failed polls. It is only still the "/3" of the "Poll failed
+// (n/3)" log line, which reports and tests rely on.
 const POLL_FAIL_THRESHOLD = 3;
+
+// Everything about when this device connects again and when its tile goes
+// unavailable. One frozen object: a test scales a copy on the instance
+// (`device._timing = { ...TIMING, RECONNECT_GAP_MS: 200 }`) and never touches
+// these production values.
+//
+//  RECONNECT_GAP_MS      The WiFi module resets a connection that is opened
+//                        too soon after the previous session ended
+//                        (PROTOCOL.md 4.5), and a reset that arrives as
+//                        another session end keeps the loop going. So a new
+//                        connection waits at least this long after the end of
+//                        ANY session: our own close, a FIN or RST from the
+//                        machine, a failed poll or connect, a cancelled
+//                        connect. A poll in that time is skipped (not a
+//                        failure); a brew waits the rest, at most this long.
+//  RECONNECT_MAX_MS      After a connect that failed the wait grows: the gap,
+//                        twice the gap, then this (20, 40, 60 s), until a
+//                        connect succeeds again. It applies to polls only; a
+//                        brew never waits longer than the gap.
+//  UNAVAILABLE_AFTER_MS  The tile goes unavailable once this long has passed
+//                        without a successful poll (a status was read, or the
+//                        machine answered busy for no longer than the limit
+//                        below), and not before. Counted in time, not in polls.
+//  BUSY_MAX_MS           A machine that for this long only answers busy
+//                        (STATUS_BUSY: it answers @HU? but never sends a @TF:
+//                        again) counts as a failed poll, and its connection
+//                        is reset. A brew is far shorter than this.
+const TIMING = Object.freeze({
+  RECONNECT_GAP_MS: 20000,
+  RECONNECT_MAX_MS: 60000,
+  UNAVAILABLE_AFTER_MS: 60000,
+  BUSY_MAX_MS: 300000,
+});
+
+// The error that ends a connect which a reset or a delete has cancelled (see
+// _closeIfStale and _waitForGap). Its code tells _doConnect that the machine
+// did nothing wrong.
+const CONNECT_CANCELLED_CODE = 'CONNECT_CANCELLED';
+
+function connectCancelledError() {
+  const err = new Error('Connection attempt cancelled: the device was reset or removed while it was connecting.');
+  err.code = CONNECT_CANCELLED_CODE;
+  return err;
+}
 
 // How often _poll() writes the one-line health summary to the log. There is
 // no timer for it: the end of every poll checks whether this long has passed
@@ -187,6 +231,30 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
     this._pollFailCount = 0;
     this._polling = false;
+    // When the last session, or attempt at one, ended, whoever ended it (see
+    // _noteSessionEnd); null until the first one, so the very first connect
+    // does not wait.
+    this._lastSessionEndAt = null;
+    // Connects in a row that failed, cancelled ones not counted: it sets how
+    // long the next one waits (see _reconnectWaitMs). Starts over at the next
+    // connect that works.
+    this._connectFailures = 0;
+    // The wait of a connect for the gap, if one is running, so a reset can
+    // cancel it (see _waitForGap).
+    this._gapWait = null;
+    // Whether the log already says that polls are being skipped for the gap,
+    // so a run of skipped polls gives one line (see _poll).
+    this._pollSkipLogged = false;
+    // For the tile: the last time a poll showed the machine alive (a status
+    // was read, or it answered busy within TIMING.BUSY_MAX_MS), since when
+    // the machine has only answered busy, what the last failed poll said, and
+    // whether the tile is available. null is unknown: Homey keeps a device
+    // unavailable over an app restart, so the first poll that works says
+    // setAvailable once (see _updateAvailability).
+    this._lastAliveAt = Date.now();
+    this._busySince = null;
+    this._lastFailText = '';
+    this._available = null;
     // For the health line (_logHealth): polls by outcome and reconnects since
     // the previous line, when that line was written, and when the current
     // connection was made.
@@ -498,23 +566,115 @@ class JuraMachineDevice extends Device {
    * whose socket is up but whose handshake is still running already calls
    * itself connected, and a second caller (a brew) that trusted that would
    * write its command over a session the machine has not accepted yet.
+   *
+   * A new connection also waits for the time since the previous session ended
+   * (see _reconnectWaitMs). A caller that cannot wait for that (the poll) gets
+   * `false` and does nothing; one that can (`waitForGap`, a brew) waits the
+   * rest, and so does the connect that every caller after it shares. Resolves
+   * `true` when there is a connection.
+   * @param {{waitForGap?: boolean}} [opts]
+   * @returns {Promise<boolean>}
    */
-  async _connectIfNeeded() {
+  async _connectIfNeeded({ waitForGap = false } = {}) {
     if (this._connectPromise) return this._connectPromise;
-    if (this._client && this._client.connected) return;
+    if (this._client && this._client.connected) return true;
     // A client that is here but no longer connected (its onClose has not
     // thrown it away yet, or it never got connected) goes through the same
-    // reset as any other, so its figures and its close reason are kept. Not
-    // awaited, on purpose: everything it changes happens before its first
-    // await, and an await here would let a second caller slip in between and
-    // start a connect of its own.
+    // reset as any other, so its figures and its close reason are kept, and
+    // the wait below counts from this moment. Not awaited, on purpose:
+    // everything it changes happens before its first await, and an await here
+    // would let a second caller slip in between and start a connect of its
+    // own.
     if (this._client) this._resetClient('closed').catch(this.error);
-    this._connectPromise = this._doConnect();
+    const waitMs = this._reconnectWaitMs(waitForGap);
+    if (waitMs > 0 && !waitForGap) return false;
+    // A connect is made (or waited for): the run of skipped polls, if there
+    // was one, is over, and the next one gets its own log line.
+    this._pollSkipLogged = false;
+    this._connectPromise = this._connectAfter(waitMs);
     try {
-      await this._connectPromise;
+      return await this._connectPromise;
     } finally {
       this._connectPromise = null;
     }
+  }
+
+  /**
+   * The connect that _connectIfNeeded shares: waits `waitMs` (the gap, when
+   * a brew has to wait for it), then connects. With nothing to wait for it
+   * calls _doConnect in the same tick, as before the gap existed. A timer can
+   * fire a moment before the time is really up, so the wait is checked again
+   * and repeated until the gap has passed.
+   * @param {number} waitMs
+   * @returns {Promise<boolean>}
+   */
+  async _connectAfter(waitMs) {
+    let remainingMs = waitMs;
+    while (remainingMs > 0) {
+      await this._waitForGap(remainingMs);
+      remainingMs = this._reconnectWaitMs(true);
+    }
+    await this._doConnect();
+    return true;
+  }
+
+  /**
+   * How long, in ms, a new connection still has to wait: until the end of the
+   * last session (see _noteSessionEnd) is at least the gap ago, and after
+   * connects that failed in a row (`_connectFailures`) the longer wait of
+   * TIMING.RECONNECT_MAX_MS: the gap, twice the gap, then the maximum. 0 when
+   * nothing has to be waited for. `forBrew`: a brew waits for the gap only,
+   * never for the longer wait after failed connects, so it is at most
+   * TIMING.RECONNECT_GAP_MS.
+   * @param {boolean} [forBrew]
+   * @returns {number}
+   */
+  _reconnectWaitMs(forBrew = false) {
+    if (this._lastSessionEndAt === null) return 0;
+    const timing = this._timing;
+    let pauseMs = timing.RECONNECT_GAP_MS;
+    if (!forBrew && this._connectFailures > 1) {
+      pauseMs = Math.max(
+        pauseMs,
+        Math.min(timing.RECONNECT_GAP_MS * Math.pow(2, this._connectFailures - 1), timing.RECONNECT_MAX_MS)
+      );
+    }
+    return Math.max(0, this._lastSessionEndAt + pauseMs - Date.now());
+  }
+
+  /**
+   * Remember that a session (or an attempt at one) has just ended: the gap
+   * counts from now. Called wherever a client leaves or is closed, whoever
+   * ended it: _resetClient (our own close, the machine's FIN or RST via
+   * onClose, a failed poll, a failed connect), _closeIfStale and the close in
+   * the catch of _doConnect.
+   */
+  _noteSessionEnd() {
+    this._lastSessionEndAt = Date.now();
+  }
+
+  /**
+   * Resolves after `ms`, or rejects with the "connection attempt cancelled"
+   * error when _resetClient cancels it (a delete, an uninit or a changed
+   * address while a brew still waits for the gap): the connect behind it must
+   * not open a socket for a device that is gone or points elsewhere.
+   * @param {number} ms
+   * @returns {Promise<void>}
+   */
+  _waitForGap(ms) {
+    return new Promise((resolve, reject) => {
+      const timer = this.homey.setTimeout(() => {
+        this._gapWait = null;
+        resolve();
+      }, ms);
+      this._gapWait = {
+        cancel: () => {
+          this.homey.clearTimeout(timer);
+          this._gapWait = null;
+          reject(connectCancelledError());
+        },
+      };
+    });
   }
 
   /**
@@ -571,10 +731,22 @@ class JuraMachineDevice extends Device {
       if (this._hasConnected) this._healthReconnects += 1;
       this._hasConnected = true;
       this._sessionStartedAt = Date.now();
-      this.setAvailable().catch(this.error);
+      // The backoff starts over. The tile is not set available here: only a
+      // poll that reads a status does that (see _poll).
+      this._connectFailures = 0;
     } catch (err) {
-      if (this._client === client) await this._resetClient(err.message);
-      else await client.close().catch(() => {});
+      // A connect that failed lengthens the wait for the next one (see
+      // _reconnectWaitMs), whoever ended the connection: the machine that
+      // refused the handshake, or reset it so that our own onClose threw the
+      // client away first. Only a connect the device cancelled itself (the
+      // connect was fine, a reset or delete came, see _closeIfStale) does not.
+      if (err.code !== CONNECT_CANCELLED_CODE) this._connectFailures += 1;
+      if (this._client === client) {
+        await this._resetClient(err.message);
+      } else {
+        await client.close().catch(() => {});
+        this._noteSessionEnd();
+      }
       throw err;
     }
   }
@@ -587,7 +759,8 @@ class JuraMachineDevice extends Device {
   async _closeIfStale(client, generation) {
     if (generation === this._clientGeneration) return;
     await client.close().catch(() => {});
-    throw new Error('Connection attempt cancelled: the device was reset or removed while it was connecting.');
+    this._noteSessionEnd();
+    throw connectCancelledError();
   }
 
   /**
@@ -610,16 +783,30 @@ class JuraMachineDevice extends Device {
    * Steps 1 to 4 happen before the first await, so a caller that does not
    * await this still sees them done. Never rejects: it runs while things are
    * being cleaned up.
+   *
+   * The gap before the next connect counts from this moment (see
+   * _noteSessionEnd), and a brew that still waits for that gap is cancelled
+   * (see _waitForGap).
+   *
+   * A caller that works with a client of its own (the poll, a brew) passes it
+   * as `client`: the reset then only happens when that is still the current
+   * client. Without it, a failure that is only noticed late (the old client's
+   * read times out after a new one has been made) would throw the new client
+   * away. A call without a client resets whatever the current one is.
    * @param {string} reason
+   * @param {JuraClient} [client]
    */
-  async _resetClient(reason) {
-    const client = this._client;
-    if (!client) return;
+  async _resetClient(reason, client) {
+    if (client !== undefined && this._client !== client) return;
+    if (this._gapWait) this._gapWait.cancel();
+    const current = this._client;
+    if (!current) return;
     this._clientGeneration += 1;
     this._client = null;
-    this._lastCloseReason = safeText((client.lastCloseReason && client.lastCloseReason.message) || reason);
-    this._bankStats(client);
-    await client.close().catch(() => {});
+    this._lastCloseReason = safeText((current.lastCloseReason && current.lastCloseReason.message) || reason);
+    this._bankStats(current);
+    this._noteSessionEnd();
+    await current.close().catch(() => {});
   }
 
   // ---------- polling ----------
@@ -659,11 +846,23 @@ class JuraMachineDevice extends Device {
     // pile up; the next tick picks up where this one left off anyway.
     if (this._polling) return;
     this._polling = true;
+    // Held outside the try: the catch below resets this client, and only it.
+    let client = null;
+    // Whether this poll fails because the machine only answered busy for too
+    // long, which is not a break in the run of busy rounds.
+    let busyTooLong = false;
     try {
-      await this._connectIfNeeded();
+      // false: the machine is still given time since its last session ended
+      // (TIMING.RECONNECT_GAP_MS, or the longer wait after failed connects).
+      // A poll does not wait for that and does not count as failed: it is
+      // skipped, and the next tick tries again.
+      if ((await this._connectIfNeeded()) === false) {
+        this._skipPoll();
+        return;
+      }
       // Held in a local: the client's own onClose can throw it away (set
       // this._client to null) at any await below.
-      const client = this._client;
+      client = this._client;
       let status;
       try {
         status = await client.readStatus(8000);
@@ -675,7 +874,23 @@ class JuraMachineDevice extends Device {
           // this cycle, and don't run the maintenance/brew-count reads
           // below. Just wait for the next poll to catch a @TF: once the
           // machine settles back down.
+          //
+          // Busy rounds are a sign of life, but only up to
+          // TIMING.BUSY_MAX_MS in a row: a machine that answers @HU? and
+          // never sends a @TF: again must not stay available with frozen
+          // values for ever. Past the limit this poll fails like any other
+          // (and so resets the client), and the rounds that follow on the
+          // new connection fail at once as well, until a status is read.
+          const now = Date.now();
+          if (this._busySince === null) this._busySince = now;
+          if (now - this._busySince > this._timing.BUSY_MAX_MS) {
+            busyTooLong = true;
+            throw new Error(
+              `Machine answered busy for more than ${this._timing.BUSY_MAX_MS / 1000} s without sending a status; the connection is reset.`
+            );
+          }
           this._pollFailCount = 0;
+          this._lastAliveAt = now;
           this._healthPolls.busy += 1;
           this.log('No status this cycle (machine busy):', err.message);
           return;
@@ -683,7 +898,9 @@ class JuraMachineDevice extends Device {
         throw err;
       }
       this._pollFailCount = 0;
+      this._busySince = null;
       this._healthPolls.ok += 1;
+      this._pollSucceeded();
       this.log('Status:', status.activeAlerts.join(', ') || '(none)');
 
       // onoff reflects "not in standby" -- the closest read-only analogue
@@ -772,20 +989,63 @@ class JuraMachineDevice extends Device {
     } catch (err) {
       this._pollFailCount += 1;
       this._healthPolls.fail += 1;
+      if (!busyTooLong) this._busySince = null;
       this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, safeText(err.message, LOG_TEXT_MAX));
-      // Only flip the device tile to unavailable once a hiccup has
-      // outlasted a couple of poll cycles -- see POLL_FAIL_THRESHOLD.
-      if (this._pollFailCount >= POLL_FAIL_THRESHOLD) {
-        // The message can quote a frame (redactFrame) and goes on the tile,
-        // so it is cut as well.
-        this.setUnavailable(safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX)).catch(this.error);
-      }
-      // Nothing left to do when the client's onClose threw it away already.
-      await this._resetClient(err.message);
+      // What the tile shows if this failure is still the latest one when the
+      // time without a successful poll runs out (see _updateAvailability).
+      // The message can quote a frame (redactFrame) and goes on the tile, so
+      // it is cut as well.
+      this._lastFailText = safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX);
+      // Only the client this poll used, and only when it is still the current
+      // one: nothing is left to do when the client's onClose threw it away
+      // already, and a client made since must stay. A failed connect has no
+      // client here; _doConnect has reset its own.
+      if (client) await this._resetClient(err.message, client);
     } finally {
       this._polling = false;
+      this._updateAvailability();
       this._logHealth();
     }
+  }
+
+  /**
+   * A poll that is skipped because the machine is still given time since its
+   * last session ended (see _connectIfNeeded). It is no failure and counts for
+   * nothing; the log gets one line for a whole run of skipped polls.
+   */
+  _skipPoll() {
+    if (this._pollSkipLogged) return;
+    this._pollSkipLogged = true;
+    this.log(
+      `Poll skipped: waiting ${Math.ceil(this._reconnectWaitMs() / 1000)} s before connecting again (the machine needs a pause after a connection ends).`
+    );
+  }
+
+  /**
+   * A poll has read a status: the machine is alive, and the tile is set
+   * available when it was not, or when that is not known (see onInit). This
+   * is the only place that does so; connecting alone proves nothing.
+   */
+  _pollSucceeded() {
+    this._lastAliveAt = Date.now();
+    this._lastFailText = '';
+    if (this._available === true) return;
+    this._available = true;
+    this.setAvailable().catch(this.error);
+  }
+
+  /**
+   * Once per outage, not before TIMING.UNAVAILABLE_AFTER_MS has passed without
+   * a successful poll, the tile goes unavailable (setUnavailable, with the
+   * text of the latest failed poll). Time decides, whatever the polls did in
+   * between: failed, skipped, or cancelled by a reset. Called at the end of
+   * every poll.
+   */
+  _updateAvailability() {
+    if (this._available === false) return;
+    if (Date.now() - this._lastAliveAt < this._timing.UNAVAILABLE_AFTER_MS) return;
+    this._available = false;
+    this.setUnavailable(this._lastFailText || 'No status from the machine.').catch(this.error);
   }
 
   /**
@@ -919,11 +1179,16 @@ class JuraMachineDevice extends Device {
         finalOverrides.coffee_strength = profileLib.strengthLevelToWire(strengthParam('espresso'), settings.espresso_strength);
       }
     }
-    await this._connectIfNeeded();
+    // A brew waits for the gap since the last session ended, if that is still
+    // running (at most TIMING.RECONNECT_GAP_MS), and then connects.
+    await this._connectIfNeeded({ waitForGap: true });
     const { isBrewAccept } = require('../../lib/juraClient');
+    // Held in a local: a late failure of this client must not reset a client
+    // that has been made since (see _resetClient).
+    const client = this._client;
     let reply;
     try {
-      reply = await this._client.brew(productName, finalOverrides, { retry: true, timeoutMs: BREW_TIMEOUT_MS });
+      reply = await client.brew(productName, finalOverrides, { retry: true, timeoutMs: BREW_TIMEOUT_MS });
     } catch (err) {
       // JuraClient.brew() throws a coded BrewError for every failure while
       // talking to the machine (other errors, such as an unknown product,
@@ -945,7 +1210,7 @@ class JuraMachineDevice extends Device {
         // The connection itself is gone, so this client is of no use any more
         // (the next brew connects afresh). Not done for the codes above: the
         // machine answered or may still answer, and the connection is fine.
-        await this._resetClient('connection lost during a brew');
+        await this._resetClient('connection lost during a brew', client);
         throw new Error('The connection to the machine dropped during the brew command. Check whether it started before trying again.');
       }
       throw err;
@@ -966,4 +1231,11 @@ class JuraMachineDevice extends Device {
 
 }
 
+// The timing every device runs on, see TIMING. It sits on the prototype, so a
+// test can put a scaled copy on one instance, before or after onInit, without
+// the production values ever changing.
+JuraMachineDevice.prototype._timing = TIMING;
+
 module.exports = JuraMachineDevice;
+// Next to the class, so a test can read the production values.
+module.exports.TIMING = TIMING;
