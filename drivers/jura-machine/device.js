@@ -64,16 +64,26 @@ const POLL_FAIL_THRESHOLD = 3;
 //                        failure); a brew waits the rest, at most this long.
 //  RECONNECT_MAX_MS      After a connect that failed the wait grows: the gap,
 //                        twice the gap, then this (20, 40, 60 s), until a
-//                        connect succeeds again. It applies to polls only; a
-//                        brew never waits longer than the gap.
+//                        connect succeeds again. Only a connect that had a TCP
+//                        session counts (a refused, reset or unanswered
+//                        handshake): a machine that cannot be reached at all,
+//                        because it is off, keeps the gap, so that it is back
+//                        within the gap and a poll after it is switched on.
+//                        It applies to polls only; a brew never waits longer
+//                        than the gap.
 //  UNAVAILABLE_AFTER_MS  The tile goes unavailable once this long has passed
 //                        without a successful poll (a status was read, or the
-//                        machine answered busy for no longer than the limit
-//                        below), and not before. Counted in time, not in polls.
+//                        machine answered busy: that is a sign of life), and
+//                        not before. Counted in time, not in polls.
 //  BUSY_MAX_MS           A machine that for this long only answers busy
 //                        (STATUS_BUSY: it answers @HU? but never sends a @TF:
-//                        again) counts as a failed poll, and its connection
-//                        is reset. A brew is far shorter than this.
+//                        again) gets its connection reset, once, with a line
+//                        in the log, and the count of busy time starts over.
+//                        It is no failed poll and never makes the tile
+//                        unavailable: a cleaning or descaling programme of
+//                        more than this has not been measured, and the tile
+//                        must not go unavailable because of one. A brew is
+//                        far shorter than this.
 const TIMING = Object.freeze({
   RECONNECT_GAP_MS: 20000,
   RECONNECT_MAX_MS: 60000,
@@ -114,6 +124,33 @@ const LOG_TEXT_MAX = 300;
 // longest @TF: gap is a maximum, not a sum, so it is handled apart; the
 // average follows from tfGapSumMs and tfGapCount.
 const BANKED_SUM_KEYS = ['tf', 'tv', 'hu', 'markers', 'other', 'tfGapCount', 'tfGapSumMs', 'droppedReplies'];
+
+/**
+ * Milliseconds on a clock that only ever runs forward: an NTP step or a manual
+ * change of the wall clock (Date.now) does not move it. Only differences
+ * between two readings mean anything. Used for the wait of one connect for the
+ * gap (see _connectAfter); the other timestamps still use Date.now.
+ */
+function monotonicMs() {
+  return Number(process.hrtime.bigint()) / 1e6;
+}
+
+// The text of the timeout that JuraClient._rawConnect gives a socket that did
+// not open in time.
+const CONNECT_TIMEOUT_RE = /^connect timeout after /;
+
+/**
+ * Whether a connect failed before there was any TCP session: the socket could
+ * not be opened (an error code of UNREACHABLE_CODES: the machine is off or not
+ * reachable) or did not open in time (the timeout of the raw socket). With no
+ * session the machine cannot have reset anything because we came back too soon,
+ * so such a failure does not lengthen the wait for the next connect (see
+ * _doConnect). A handshake that was refused, reset or not answered did have a
+ * session, and does count.
+ */
+function failedWithoutSession(err) {
+  return UNREACHABLE_CODES.has(err.code) || CONNECT_TIMEOUT_RE.test(String(err.message));
+}
 
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
@@ -235,9 +272,10 @@ class JuraMachineDevice extends Device {
     // _noteSessionEnd); null until the first one, so the very first connect
     // does not wait.
     this._lastSessionEndAt = null;
-    // Connects in a row that failed, cancelled ones not counted: it sets how
-    // long the next one waits (see _reconnectWaitMs). Starts over at the next
-    // connect that works.
+    // Connects in a row that failed, cancelled ones and ones that never had a
+    // TCP session (see failedWithoutSession) not counted: it sets how long the
+    // next one waits (see _reconnectWaitMs). Starts over at the next connect
+    // that works.
     this._connectFailures = 0;
     // The wait of a connect for the gap, if one is running, so a reset can
     // cancel it (see _waitForGap).
@@ -246,15 +284,18 @@ class JuraMachineDevice extends Device {
     // so a run of skipped polls gives one line (see _poll).
     this._pollSkipLogged = false;
     // For the tile: the last time a poll showed the machine alive (a status
-    // was read, or it answered busy within TIMING.BUSY_MAX_MS), since when
-    // the machine has only answered busy, what the last failed poll said, and
-    // whether the tile is available. null is unknown: Homey keeps a device
-    // unavailable over an app restart, so the first poll that works says
-    // setAvailable once (see _updateAvailability).
+    // was read, or it answered busy), since when the machine has only
+    // answered busy, what the last failed poll said, and whether the tile is
+    // available. null is unknown: it has not been checked whether Homey still
+    // shows the tile as unavailable from before an app restart, so the first
+    // poll that works says setAvailable once, to be sure (see _pollSucceeded).
     this._lastAliveAt = Date.now();
     this._busySince = null;
     this._lastFailText = '';
     this._available = null;
+    // Whether a setAvailable or setUnavailable call is still on its way (see
+    // _setTile).
+    this._tileCallPending = false;
     // For the health line (_logHealth): polls by outcome and reconnects since
     // the previous line, when that line was written, and when the current
     // connection was made.
@@ -451,6 +492,12 @@ class JuraMachineDevice extends Device {
       this.log('Connection settings changed, reconnecting...');
       this._stopPolling();
       await this._resetClient('connection settings changed');
+      // The backoff of the old address or profile means nothing for the new
+      // one, so the new one is not made to wait for it. The gap stays: it
+      // counts from this moment, also when there was no client to reset (a
+      // reset without a client notes no end of a session by itself).
+      this._connectFailures = 0;
+      this._noteSessionEnd();
     }
 
     // Accumulated (OR'd in), not overwritten -- a save's own changedKeys
@@ -604,15 +651,22 @@ class JuraMachineDevice extends Device {
    * a brew has to wait for it), then connects. With nothing to wait for it
    * calls _doConnect in the same tick, as before the gap existed. A timer can
    * fire a moment before the time is really up, so the wait is checked again
-   * and repeated until the gap has passed.
+   * and repeated until it has passed.
+   *
+   * The end of the wait is fixed once, on the monotonic clock (see
+   * monotonicMs), and every check is against that deadline. Working it out
+   * again from the wall clock after each timer would let a wall clock that
+   * jumped back (an NTP step, a manual change) stretch the wait by the size
+   * of the jump.
    * @param {number} waitMs
    * @returns {Promise<boolean>}
    */
   async _connectAfter(waitMs) {
+    const deadline = monotonicMs() + waitMs;
     let remainingMs = waitMs;
     while (remainingMs > 0) {
       await this._waitForGap(remainingMs);
-      remainingMs = this._reconnectWaitMs(true);
+      remainingMs = deadline - monotonicMs();
     }
     await this._doConnect();
     return true;
@@ -625,7 +679,9 @@ class JuraMachineDevice extends Device {
    * TIMING.RECONNECT_MAX_MS: the gap, twice the gap, then the maximum. 0 when
    * nothing has to be waited for. `forBrew`: a brew waits for the gap only,
    * never for the longer wait after failed connects, so it is at most
-   * TIMING.RECONNECT_GAP_MS.
+   * TIMING.RECONNECT_GAP_MS. Never more than the pause itself either, whatever
+   * the wall clock did since the session ended: a clock that jumped back would
+   * otherwise add the jump to it.
    * @param {boolean} [forBrew]
    * @returns {number}
    */
@@ -639,7 +695,7 @@ class JuraMachineDevice extends Device {
         Math.min(timing.RECONNECT_GAP_MS * Math.pow(2, this._connectFailures - 1), timing.RECONNECT_MAX_MS)
       );
     }
-    return Math.max(0, this._lastSessionEndAt + pauseMs - Date.now());
+    return Math.min(pauseMs, Math.max(0, this._lastSessionEndAt + pauseMs - Date.now()));
   }
 
   /**
@@ -738,9 +794,12 @@ class JuraMachineDevice extends Device {
       // A connect that failed lengthens the wait for the next one (see
       // _reconnectWaitMs), whoever ended the connection: the machine that
       // refused the handshake, or reset it so that our own onClose threw the
-      // client away first. Only a connect the device cancelled itself (the
-      // connect was fine, a reset or delete came, see _closeIfStale) does not.
-      if (err.code !== CONNECT_CANCELLED_CODE) this._connectFailures += 1;
+      // client away first. Two kinds do not: a connect the device cancelled
+      // itself (the connect was fine, a reset or delete came, see
+      // _closeIfStale), and one that never had a TCP session (see
+      // failedWithoutSession): a machine that is off cannot be churning, and
+      // must not make the wait after it is switched on any longer than the gap.
+      if (err.code !== CONNECT_CANCELLED_CODE && !failedWithoutSession(err)) this._connectFailures += 1;
       if (this._client === client) {
         await this._resetClient(err.message);
       } else {
@@ -848,9 +907,6 @@ class JuraMachineDevice extends Device {
     this._polling = true;
     // Held outside the try: the catch below resets this client, and only it.
     let client = null;
-    // Whether this poll fails because the machine only answered busy for too
-    // long, which is not a break in the run of busy rounds.
-    let busyTooLong = false;
     try {
       // false: the machine is still given time since its last session ended
       // (TIMING.RECONNECT_GAP_MS, or the longer wait after failed connects).
@@ -875,24 +931,27 @@ class JuraMachineDevice extends Device {
           // below. Just wait for the next poll to catch a @TF: once the
           // machine settles back down.
           //
-          // Busy rounds are a sign of life, but only up to
-          // TIMING.BUSY_MAX_MS in a row: a machine that answers @HU? and
-          // never sends a @TF: again must not stay available with frozen
-          // values for ever. Past the limit this poll fails like any other
-          // (and so resets the client), and the rounds that follow on the
-          // new connection fail at once as well, until a status is read.
+          // A busy round is always a sign of life: it never makes the tile
+          // unavailable, and it is no failed poll. Past TIMING.BUSY_MAX_MS in
+          // a row (a machine that answers @HU? and never sends a @TF: again,
+          // or a cleaning or descaling programme longer than has been
+          // measured) the connection is reset, once, and the busy time starts
+          // over, so that a new connection that is still busy gets another
+          // full BUSY_MAX_MS: one reset per BUSY_MAX_MS at most.
           const now = Date.now();
           if (this._busySince === null) this._busySince = now;
-          if (now - this._busySince > this._timing.BUSY_MAX_MS) {
-            busyTooLong = true;
-            throw new Error(
-              `Machine answered busy for more than ${this._timing.BUSY_MAX_MS / 1000} s without sending a status; the connection is reset.`
-            );
-          }
+          const busyTooLong = now - this._busySince > this._timing.BUSY_MAX_MS;
           this._pollFailCount = 0;
           this._lastAliveAt = now;
           this._healthPolls.busy += 1;
-          this.log('No status this cycle (machine busy):', err.message);
+          if (busyTooLong) {
+            this._busySince = null;
+            const busyText = `Machine answered busy for more than ${this._timing.BUSY_MAX_MS / 1000} s without sending a status`;
+            this.log(`${busyText}; the connection is reset once, and the busy time starts over.`);
+            await this._resetClient(busyText, client);
+          } else {
+            this.log('No status this cycle (machine busy):', err.message);
+          }
           return;
         }
         throw err;
@@ -989,7 +1048,7 @@ class JuraMachineDevice extends Device {
     } catch (err) {
       this._pollFailCount += 1;
       this._healthPolls.fail += 1;
-      if (!busyTooLong) this._busySince = null;
+      this._busySince = null;
       this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, safeText(err.message, LOG_TEXT_MAX));
       // What the tile shows if this failure is still the latest one when the
       // time without a successful poll runs out (see _updateAvailability).
@@ -1024,14 +1083,15 @@ class JuraMachineDevice extends Device {
   /**
    * A poll has read a status: the machine is alive, and the tile is set
    * available when it was not, or when that is not known (see onInit). This
-   * is the only place that does so; connecting alone proves nothing.
+   * is the only place that does so; connecting alone proves nothing. (A busy
+   * round also counts as a sign of life, but only keeps the tile from going
+   * unavailable: see _poll.)
    */
   _pollSucceeded() {
     this._lastAliveAt = Date.now();
     this._lastFailText = '';
     if (this._available === true) return;
-    this._available = true;
-    this.setAvailable().catch(this.error);
+    this._setTile(true);
   }
 
   /**
@@ -1039,13 +1099,43 @@ class JuraMachineDevice extends Device {
    * a successful poll, the tile goes unavailable (setUnavailable, with the
    * text of the latest failed poll). Time decides, whatever the polls did in
    * between: failed, skipped, or cancelled by a reset. Called at the end of
-   * every poll.
+   * every poll, so a call that Homey rejected is made again there (see
+   * _setTile).
    */
   _updateAvailability() {
     if (this._available === false) return;
     if (Date.now() - this._lastAliveAt < this._timing.UNAVAILABLE_AFTER_MS) return;
-    this._available = false;
-    this.setUnavailable(this._lastFailText || 'No status from the machine.').catch(this.error);
+    this._setTile(false, this._lastFailText || 'No status from the machine.');
+  }
+
+  /**
+   * Tell Homey that the tile is available, or unavailable with `text`. The
+   * state in `_available` only changes when Homey has taken the call: if it
+   * rejects it, the state stays as it was, so that the next poll tries again
+   * (otherwise the tile could stay wrong for good). While a call is still on
+   * its way no second one is made, so a call that takes a while is not
+   * repeated by the next poll. Never rejects.
+   * @param {boolean} available
+   * @param {string} [text]
+   */
+  async _setTile(available, text) {
+    if (this._tileCallPending) return;
+    this._tileCallPending = true;
+    try {
+      if (available) {
+        await this.setAvailable();
+      } else {
+        await this.setUnavailable(text);
+      }
+      this._available = available;
+    } catch (err) {
+      this.error(
+        `${available ? 'setAvailable' : 'setUnavailable'} failed, it is tried again at the next poll:`,
+        err instanceof Error ? err.message : String(err)
+      );
+    } finally {
+      this._tileCallPending = false;
+    }
   }
 
   /**
