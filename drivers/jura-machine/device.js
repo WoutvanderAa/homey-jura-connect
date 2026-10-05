@@ -179,6 +179,10 @@ class JuraMachineDevice extends Device {
 
     this._client = null;
     this._connectPromise = null;
+    // Raised by every _resetClient(): a connect that was started under an
+    // older number belongs to a client that was reset or deleted meanwhile,
+    // see _doConnect.
+    this._clientGeneration = 0;
     this._pollTimer = null;
     this._pollCount = 0;
     this._pollFailCount = 0;
@@ -191,8 +195,8 @@ class JuraMachineDevice extends Device {
     this._lastHealthAt = Date.now();
     this._hasConnected = false;
     this._sessionStartedAt = null;
-    // Why the last client that _poll() threw away had ended; kept until the
-    // next one, as a state.
+    // Why the last client that _resetClient() threw away had ended; kept until
+    // the next one, as a state.
     this._lastCloseReason = '';
     // The frame figures of clients thrown away since the previous health line
     // (see _bankStats), added to those of the current client in _logHealth.
@@ -324,10 +328,21 @@ class JuraMachineDevice extends Device {
     if (this._applySettingsTimer) this.homey.clearTimeout(this._applySettingsTimer);
     this._pendingSettingsApply.labels = false;
     this._pendingSettingsApply.reconnect = false;
-    if (this._client) {
-      this._bankStats(this._client);
-      await this._client.close().catch(() => {});
-    }
+    await this._resetClient('device deleted');
+  }
+
+  /**
+   * Homey calls this when the app stops or the device is taken out of
+   * service, with the same duties as onDeleted: no timer may fire any more,
+   * and the connection ends with the polite close (the empty frame, then FIN)
+   * instead of being left for the machine to time out.
+   */
+  async onUninit() {
+    this._stopPolling();
+    if (this._applySettingsTimer) this.homey.clearTimeout(this._applySettingsTimer);
+    this._pendingSettingsApply.labels = false;
+    this._pendingSettingsApply.reconnect = false;
+    await this._resetClient('device uninit');
   }
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
@@ -367,11 +382,7 @@ class JuraMachineDevice extends Device {
     if (changedKeys.includes('address') || changedKeys.includes('profile_code')) {
       this.log('Connection settings changed, reconnecting...');
       this._stopPolling();
-      if (this._client) {
-        this._bankStats(this._client);
-        await this._client.close().catch(() => {});
-      }
-      this._client = null;
+      await this._resetClient('connection settings changed');
     }
 
     // Accumulated (OR'd in), not overwritten -- a save's own changedKeys
@@ -445,7 +456,7 @@ class JuraMachineDevice extends Device {
     const address = settings.address || store.address;
     const profile = this._resolveProfile();
 
-    return new JuraClient(address, {
+    const client = new JuraClient(address, {
       connId: store.connId,
       authHash: store.authHash,
       // @HP: includes the pin on every handshake, not just the first --
@@ -456,7 +467,16 @@ class JuraMachineDevice extends Device {
       // Synchronous on purpose: FrameLog hands every line over right away and
       // does not wait for it. The lines are redacted and cut before they get here.
       logger: (line) => this.log('[frame]', line),
+      // The connection ended (the machine closed or reset it, or a socket
+      // error): throw the client away now, with its figures banked, instead
+      // of finding out at the next poll. A client that is no longer the
+      // current one was reset already, and _resetClient's own close() of the
+      // current one ends up here too, so both are ignored.
+      onClose: () => {
+        if (this._client === client) this._resetClient('closed').catch(this.error);
+      },
     });
+    return client;
   }
 
   /**
@@ -473,10 +493,22 @@ class JuraMachineDevice extends Device {
    * accepts one connection at a time, so a leaked one like that would
    * make every subsequent connection attempt fail until the machine's
    * own idle-connection timeout eventually cleans it up.
+   *
+   * The attempt in flight is checked FIRST, before `connected`: a client
+   * whose socket is up but whose handshake is still running already calls
+   * itself connected, and a second caller (a brew) that trusted that would
+   * write its command over a session the machine has not accepted yet.
    */
   async _connectIfNeeded() {
-    if (this._client && this._client.connected) return;
     if (this._connectPromise) return this._connectPromise;
+    if (this._client && this._client.connected) return;
+    // A client that is here but no longer connected (its onClose has not
+    // thrown it away yet, or it never got connected) goes through the same
+    // reset as any other, so its figures and its close reason are kept. Not
+    // awaited, on purpose: everything it changes happens before its first
+    // await, and an await here would let a second caller slip in between and
+    // start a connect of its own.
+    if (this._client) this._resetClient('closed').catch(this.error);
     this._connectPromise = this._doConnect();
     try {
       await this._connectPromise;
@@ -485,41 +517,109 @@ class JuraMachineDevice extends Device {
     }
   }
 
+  /**
+   * A reset or delete can come while this still waits for the machine (a
+   * connect that is still opening its socket is not closed by close(), so it
+   * would finish and stay open with nobody to close it). That is what
+   * `_clientGeneration` is for: when it changed since this connect started,
+   * the client is closed again at once and not used. That check comes AFTER
+   * the auth token of the handshake has been stored: a machine that rotated
+   * its token for this connection must not be left with a stored one it no
+   * longer accepts, only because the connect arrived late.
+   *
+   * Whatever goes wrong on the way (a rejected handshake, no reply, a
+   * cancelled attempt), the client of this attempt does not stay open: it goes
+   * through _resetClient when it is still the current one, which also keeps
+   * the real reason for `close=` in the health line, or is simply closed when
+   * a reset has replaced it already. The error is then thrown again.
+   */
   async _doConnect() {
-    this._client = this._buildClient();
-    const result = await this._client.connect(15000);
-    if (result.state !== 'CORRECT') {
-      // WRONG_HASH usually means the machine was reset/re-paired via the
-      // official J.O.E. app since we last stored a hash -- surfacing
-      // this clearly beats a cryptic downstream timeout.
-      throw new Error(
-        `Handshake rejected (${result.state}). If this persists, remove and re-pair the device.`
-      );
-    }
-    const storedHash = this.getStoreValue('authHash') || '';
-    if (result.newHash && result.newHash !== storedHash) {
-      // newHash is already a hex token of 16 to 128 characters (see
-      // classifyHandshakeReply). Store it when it is the documented 64
-      // hex, or when it has the same length as the token this machine
-      // gave at pairing -- a machine with a different token length that
-      // rotates it on reconnect must not be locked out, while a damaged
-      // frame is very unlikely to match the stored length exactly.
-      if (AUTH_HASH_RE.test(result.newHash) || result.newHash.length === storedHash.length) {
-        await this.setStoreValue('authHash', result.newHash).catch(this.error);
-      } else {
-        // Only the length is logged, never the token itself.
-        this.error(
-          `Machine sent an auth token of ${result.newHash.length} characters, not 64 hex and not the length of the stored one; the stored hash was kept.`
+    const generation = this._clientGeneration;
+    const client = this._buildClient();
+    this._client = client;
+    try {
+      const result = await client.connect(15000);
+      if (result.state !== 'CORRECT') {
+        // WRONG_HASH usually means the machine was reset/re-paired via the
+        // official J.O.E. app since we last stored a hash -- surfacing
+        // this clearly beats a cryptic downstream timeout.
+        throw new Error(
+          `Handshake rejected (${result.state}). If this persists, remove and re-pair the device.`
         );
       }
-    } else if (result.hashLength !== undefined) {
-      this.error(`Machine sent an unusable auth token (length ${result.hashLength}); the stored hash was kept.`);
+      const storedHash = this.getStoreValue('authHash') || '';
+      if (result.newHash && result.newHash !== storedHash) {
+        // newHash is already a hex token of 16 to 128 characters (see
+        // classifyHandshakeReply). Store it when it is the documented 64
+        // hex, or when it has the same length as the token this machine
+        // gave at pairing -- a machine with a different token length that
+        // rotates it on reconnect must not be locked out, while a damaged
+        // frame is very unlikely to match the stored length exactly.
+        if (AUTH_HASH_RE.test(result.newHash) || result.newHash.length === storedHash.length) {
+          await this.setStoreValue('authHash', result.newHash).catch(this.error);
+        } else {
+          // Only the length is logged, never the token itself.
+          this.error(
+            `Machine sent an auth token of ${result.newHash.length} characters, not 64 hex and not the length of the stored one; the stored hash was kept.`
+          );
+        }
+      } else if (result.hashLength !== undefined) {
+        this.error(`Machine sent an unusable auth token (length ${result.hashLength}); the stored hash was kept.`);
+      }
+      await this._closeIfStale(client, generation);
+      // A connection that comes after an earlier one is a reconnect.
+      if (this._hasConnected) this._healthReconnects += 1;
+      this._hasConnected = true;
+      this._sessionStartedAt = Date.now();
+      this.setAvailable().catch(this.error);
+    } catch (err) {
+      if (this._client === client) await this._resetClient(err.message);
+      else await client.close().catch(() => {});
+      throw err;
     }
-    // A connection that comes after an earlier one is a reconnect.
-    if (this._hasConnected) this._healthReconnects += 1;
-    this._hasConnected = true;
-    this._sessionStartedAt = Date.now();
-    this.setAvailable().catch(this.error);
+  }
+
+  /**
+   * Throws, after closing `client`, when a reset or delete has happened since
+   * `generation` was read: the connect that got this far is of no use to
+   * anyone. Closing again is harmless when _resetClient already did.
+   */
+  async _closeIfStale(client, generation) {
+    if (generation === this._clientGeneration) return;
+    await client.close().catch(() => {});
+    throw new Error('Connection attempt cancelled: the device was reset or removed while it was connecting.');
+  }
+
+  /**
+   * The one way a client leaves this device, whatever the reason (`reason`,
+   * a short text of our own, used when the client has none): a failed poll,
+   * the client's own onClose, a lost connection during a brew, a deleted
+   * device, a changed address or profile, uninit. In this order:
+   *
+   *  1. `_clientGeneration` goes up, so a connect still under way is
+   *     abandoned (see _doConnect). A connect always has its client in
+   *     `this._client` from its first moment, so with no client there is
+   *     nothing to abandon and nothing is done at all;
+   *  2. `this._client` is cleared at once, so nothing else can pick the old
+   *     client up again;
+   *  3. the reason it ended is kept (the client's own, else `reason`), as the
+   *     next client starts without one, see _logHealth;
+   *  4. its frame figures are banked, see _bankStats;
+   *  5. it is closed.
+   *
+   * Steps 1 to 4 happen before the first await, so a caller that does not
+   * await this still sees them done. Never rejects: it runs while things are
+   * being cleaned up.
+   * @param {string} reason
+   */
+  async _resetClient(reason) {
+    const client = this._client;
+    if (!client) return;
+    this._clientGeneration += 1;
+    this._client = null;
+    this._lastCloseReason = safeText((client.lastCloseReason && client.lastCloseReason.message) || reason);
+    this._bankStats(client);
+    await client.close().catch(() => {});
   }
 
   // ---------- polling ----------
@@ -561,9 +661,12 @@ class JuraMachineDevice extends Device {
     this._polling = true;
     try {
       await this._connectIfNeeded();
+      // Held in a local: the client's own onClose can throw it away (set
+      // this._client to null) at any await below.
+      const client = this._client;
       let status;
       try {
-        status = await this._client.readStatus(8000);
+        status = await client.readStatus(8000);
       } catch (err) {
         if (err.code === 'STATUS_BUSY') {
           // Almost certainly just brewing (see StatusUnavailable in
@@ -619,7 +722,7 @@ class JuraMachineDevice extends Device {
       this._pollCount += 1;
       if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) {
         try {
-          const maint = await this._client.readMaintenancePercent(6000);
+          const maint = await client.readMaintenancePercent(6000);
           this.log('Maintenance %:', `cleaning=${maint.cleaning} filter=${maint.filterChange} descale=${maint.descale}`);
           // 0xFF (255) means this machine doesn't track that maintenance
           // type (e.g. no water filter cartridge fitted) -- leave the
@@ -657,7 +760,7 @@ class JuraMachineDevice extends Device {
         // transient failure (timeout, disconnect) so a network hiccup
         // doesn't wrongly overwrite the field with "not supported".
         try {
-          const total = await this._client.readTotalBrewCount(6000);
+          const total = await client.readTotalBrewCount(6000);
           this.setSettings({ total_brews: String(total) }).catch(this.error);
         } catch (err) {
           if (/does not implement the @TR:32/.test(err.message)) {
@@ -677,15 +780,8 @@ class JuraMachineDevice extends Device {
         // so it is cut as well.
         this.setUnavailable(safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX)).catch(this.error);
       }
-      if (this._client) {
-        // The next client starts without a close reason, so keep this one for
-        // the health line (see _logHealth) before the client is thrown away.
-        this._lastCloseReason = safeText((this._client.lastCloseReason && this._client.lastCloseReason.message) || err.message);
-        // Its frame figures are not lost with it either, see _bankStats.
-        this._bankStats(this._client);
-        await this._client.close().catch(() => {});
-        this._client = null;
-      }
+      // Nothing left to do when the client's onClose threw it away already.
+      await this._resetClient(err.message);
     } finally {
       this._polling = false;
       this._logHealth();
@@ -694,10 +790,10 @@ class JuraMachineDevice extends Device {
 
   /**
    * Take the frame figures of a client that is about to be closed and thrown
-   * away (a failed poll, a settings change, a deleted device) and add them to
-   * `_healthBanked`. The next client starts from zero, so without this a
-   * connection that keeps dropping would show a health line with nothing in
-   * it. Never throws: it runs while a client is being cleaned up.
+   * away (see _resetClient) and add them to `_healthBanked`. The next client
+   * starts from zero, so without this a connection that keeps dropping would
+   * show a health line with nothing in it. Never throws: it runs while a
+   * client is being cleaned up.
    * @param {JuraClient} client
    */
   _bankStats(client) {
@@ -846,6 +942,10 @@ class JuraMachineDevice extends Device {
         );
       }
       if (err.code === 'BREW_CONNECTION_LOST') {
+        // The connection itself is gone, so this client is of no use any more
+        // (the next brew connects afresh). Not done for the codes above: the
+        // machine answered or may still answer, and the connection is fine.
+        await this._resetClient('connection lost during a brew');
         throw new Error('The connection to the machine dropped during the brew command. Check whether it started before trying again.');
       }
       throw err;
