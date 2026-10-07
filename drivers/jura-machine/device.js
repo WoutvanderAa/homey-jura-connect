@@ -3,7 +3,7 @@
 const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
-const { JuraClient, AUTH_HASH_RE, isMachineClosedError } = require('../../lib/juraClient');
+const { JuraClient, AUTH_HASH_RE, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
 const { redactFrame, clipText } = require('../../lib/frameLog');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
@@ -125,16 +125,6 @@ const LOG_TEXT_MAX = 300;
 // longest @TF: gap is a maximum, not a sum, so it is handled apart; the
 // average follows from tfGapSumMs and tfGapCount.
 const BANKED_SUM_KEYS = ['tf', 'tv', 'hu', 'markers', 'other', 'tfGapCount', 'tfGapSumMs', 'droppedReplies'];
-
-/**
- * Milliseconds on a clock that only ever runs forward: an NTP step or a manual
- * change of the wall clock (Date.now) does not move it. Only differences
- * between two readings mean anything. Used for the wait of one connect for the
- * gap (see _connectAfter); the other timestamps still use Date.now.
- */
-function monotonicMs() {
-  return Number(process.hrtime.bigint()) / 1e6;
-}
 
 // The text of the timeout that JuraClient._rawConnect gives a socket that did
 // not open in time.
