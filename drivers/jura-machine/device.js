@@ -280,6 +280,10 @@ class JuraMachineDevice extends Device {
     // The wait of a connect for the gap, if one is running, so a reset can
     // cancel it (see _waitForGap).
     this._gapWait = null;
+    // The last client whose connection the machine ended (see _buildClient's
+    // onClose), as opposed to one the device threw away itself: both raise
+    // `_clientGeneration`, only this tells them apart (see _doConnect).
+    this._endedByMachine = null;
     // Whether the log already says that polls are being skipped for the gap,
     // so a run of skipped polls gives one line (see _poll).
     this._pollSkipLogged = false;
@@ -588,7 +592,12 @@ class JuraMachineDevice extends Device {
       // current one was reset already, and _resetClient's own close() of the
       // current one ends up here too, so both are ignored.
       onClose: () => {
-        if (this._client === client) this._resetClient('closed').catch(this.error);
+        if (this._client === client) {
+          // Noted before the reset: _doConnect tells this end of a connect
+          // (the machine's, counted) from one the device itself began.
+          this._endedByMachine = client;
+          this._resetClient('closed').catch(this.error);
+        }
       },
     });
     return client;
@@ -791,6 +800,15 @@ class JuraMachineDevice extends Device {
       // poll that reads a status does that (see _poll).
       this._connectFailures = 0;
     } catch (err) {
+      // A reset that the device began itself while this connect ran (a
+      // changed address, a delete, an uninit) ends the connect with an error
+      // of the client (the handshake's reader destroyed, or a socket that was
+      // still opening): that is a cancelled connect, whatever the client
+      // says. A changed generation alone does not tell: the machine that
+      // resets the handshake also goes through _resetClient, via onClose, and
+      // that one must keep counting below.
+      const cancelled = generation !== this._clientGeneration && this._endedByMachine !== client;
+      const failure = cancelled ? connectCancelledError() : err;
       // A connect that failed lengthens the wait for the next one (see
       // _reconnectWaitMs), whoever ended the connection: the machine that
       // refused the handshake, or reset it so that our own onClose threw the
@@ -799,14 +817,14 @@ class JuraMachineDevice extends Device {
       // _closeIfStale), and one that never had a TCP session (see
       // failedWithoutSession): a machine that is off cannot be churning, and
       // must not make the wait after it is switched on any longer than the gap.
-      if (err.code !== CONNECT_CANCELLED_CODE && !failedWithoutSession(err)) this._connectFailures += 1;
+      if (failure.code !== CONNECT_CANCELLED_CODE && !failedWithoutSession(failure)) this._connectFailures += 1;
       if (this._client === client) {
-        await this._resetClient(err.message);
+        await this._resetClient(failure.message);
       } else {
         await client.close().catch(() => {});
         this._noteSessionEnd();
       }
-      throw err;
+      throw failure;
     }
   }
 
