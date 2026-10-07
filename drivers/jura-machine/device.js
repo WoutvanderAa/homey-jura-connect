@@ -3,7 +3,7 @@
 const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
-const { JuraClient, AUTH_HASH_RE } = require('../../lib/juraClient');
+const { JuraClient, AUTH_HASH_RE, isMachineClosedError } = require('../../lib/juraClient');
 const { redactFrame, clipText } = require('../../lib/frameLog');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
@@ -92,8 +92,9 @@ const TIMING = Object.freeze({
 });
 
 // The error that ends a connect which a reset or a delete has cancelled (see
-// _closeIfStale and _waitForGap). Its code tells _doConnect that the machine
-// did nothing wrong.
+// _closeIfStale, _waitForGap, and the catch of _doConnect, which gives it to a
+// connect that failed because the device itself reset the client). Its code
+// tells _doConnect that the machine did nothing wrong.
 const CONNECT_CANCELLED_CODE = 'CONNECT_CANCELLED';
 
 function connectCancelledError() {
@@ -155,6 +156,11 @@ function failedWithoutSession(err) {
 function friendlyPollError(err) {
   if (UNREACHABLE_CODES.has(err.code)) {
     return 'Machine appears to be off or unreachable on the network.';
+  }
+  // A reset or a FIN of the machine: the log keeps the raw text, the tile gets
+  // a sentence that says what to do (the J.O.E. app is the usual cause).
+  if (isMachineClosedError(err)) {
+    return 'The machine ended the connection. If the J.O.E. app is connected to the machine, close it; the connection is retried automatically.';
   }
   return err.message;
 }
@@ -743,14 +749,16 @@ class JuraMachineDevice extends Device {
   }
 
   /**
-   * A reset or delete can come while this still waits for the machine (a
-   * connect that is still opening its socket is not closed by close(), so it
-   * would finish and stay open with nobody to close it). That is what
-   * `_clientGeneration` is for: when it changed since this connect started,
-   * the client is closed again at once and not used. That check comes AFTER
-   * the auth token of the handshake has been stored: a machine that rotated
-   * its token for this connection must not be left with a stored one it no
-   * longer accepts, only because the connect arrived late.
+   * A reset or delete can come when the machine has answered the handshake
+   * already, while the new token is being stored (close() cancels a connect
+   * that is still queued, opening its socket or in its handshake, but one that
+   * has its answer would still return as if it succeeded, to a caller that
+   * then finds no client). That is what `_clientGeneration` is for: when it
+   * changed since this connect started, the connect fails and its client is
+   * closed (again, if the reset did so already) and not used. That check
+   * comes AFTER the auth token of the handshake has been stored: a machine
+   * that rotated its token for this connection must not be left with a stored
+   * one it no longer accepts, only because the connect arrived late.
    *
    * Whatever goes wrong on the way (a rejected handshake, no reply, a
    * cancelled attempt), the client of this attempt does not stay open: it goes
@@ -837,6 +845,13 @@ class JuraMachineDevice extends Device {
     if (generation === this._clientGeneration) return;
     await client.close().catch(() => {});
     this._noteSessionEnd();
+    // Not every reset is the device's: when the machine reset or closed the
+    // connection while the token was being stored, the reset came from onClose
+    // (see _buildClient). That connect failed and says why, so that it counts
+    // (see the catch of _doConnect) and nobody is told the device was reset.
+    if (this._endedByMachine === client) {
+      throw client.lastCloseReason || new Error('The machine ended the connection while it was connecting.');
+    }
     throw connectCancelledError();
   }
 

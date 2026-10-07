@@ -3,7 +3,7 @@
 const { Driver } = require('homey');
 const discovery = require('../../lib/discovery');
 const models = require('../../lib/models');
-const { JuraClient } = require('../../lib/juraClient');
+const { JuraClient, isMachineClosedError } = require('../../lib/juraClient');
 
 class JuraMachineDriver extends Driver {
 
@@ -139,6 +139,18 @@ class JuraMachineDriver extends Driver {
           hwId: machine.hwId,
           fw: machine.fw,
         };
+      } catch (err) {
+        // The machine reset or closed the connection while we waited for the
+        // user to confirm on it (or to accept a first connection): the raw
+        // text of the socket goes to the log, the user gets a sentence. A
+        // PairingTimeout and the handler's own errors are passed on as they are.
+        if (isMachineClosedError(err)) {
+          this.error('Pair: the machine ended the connection:', err.message);
+          throw new Error(
+            'The machine ended the connection during pairing. Confirm the Connect prompt on the machine, close the J.O.E. app if it is connected, and try again.'
+          );
+        }
+        throw err;
       } finally {
         await client.close().catch(() => {});
       }
