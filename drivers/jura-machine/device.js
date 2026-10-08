@@ -35,6 +35,11 @@ const MAINTENANCE_TRIGGER_IDS = {
   jura_maintenance_descale: 'jura_maintenance_descale_crossed_above',
 };
 
+// What a read-only label in the settings page's Statistics group shows when
+// there is nothing to show (no reading yet, or the machine doesn't track
+// that maintenance type) -- same as the labels' own "value" in app.json.
+const STATISTICS_PLACEHOLDER = '—';
+
 // The WiFi module goes fully offline when the machine is powered off or
 // hits its auto-off timer -- surface that plainly instead of a raw
 // socket error code.
@@ -463,6 +468,24 @@ class JuraMachineDevice extends Device {
       coffee_strength_options: optionsFor('coffee'),
       espresso_strength_options: optionsFor('espresso'),
     }).catch(this.error);
+  }
+
+  /**
+   * Write what one poll found for the read-only labels in the settings
+   * page's Statistics group (total_brews, maintenance_*) in a single
+   * setSettings, with only the ones that differ from what is saved now --
+   * nothing is written when nothing changed. Called from _poll() only,
+   * never from onSettings (see there for why setSettings is unsafe in
+   * that handler). async, so a setSettings that throws instead of
+   * rejecting still ends up in the caller's .catch, not in the poll.
+   */
+  async _saveStatistics(wanted) {
+    const saved = this.getSettings();
+    const changed = {};
+    for (const [key, value] of Object.entries(wanted)) {
+      if (saved[key] !== value) changed[key] = value;
+    }
+    if (Object.keys(changed).length > 0) await this.setSettings(changed);
   }
 
   async onAdded() {
@@ -1070,9 +1093,20 @@ class JuraMachineDevice extends Device {
 
       this._pollCount += 1;
       if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) {
+        // What this reading found for the settings page's Statistics group;
+        // written together, in one setSettings, after both reads below.
+        const statistics = {};
         try {
           const maint = await client.readMaintenancePercent(6000);
           this.log('Maintenance %:', `cleaning=${maint.cleaning} filter=${maint.filterChange} descale=${maint.descale}`);
+          // The same three readings as labels. Unlike the capabilities
+          // below, a 0xFF (type not tracked by this machine) shows the
+          // placeholder here instead of being left alone, so the label
+          // doesn't keep an old percentage.
+          const shown = (value) => (value === 0xff ? STATISTICS_PLACEHOLDER : `${value}%`);
+          statistics.maintenance_cleaning = shown(maint.cleaning);
+          statistics.maintenance_filter = shown(maint.filterChange);
+          statistics.maintenance_descale = shown(maint.descale);
           // 0xFF (255) means this machine doesn't track that maintenance
           // type (e.g. no water filter cartridge fitted) -- leave the
           // capability alone rather than showing a nonsense 255%.
@@ -1110,13 +1144,17 @@ class JuraMachineDevice extends Device {
         // doesn't wrongly overwrite the field with "not supported".
         try {
           const total = await client.readTotalBrewCount(6000);
-          this.setSettings({ total_brews: String(total) }).catch(this.error);
+          statistics.total_brews = String(total);
         } catch (err) {
           if (/does not implement the @TR:32/.test(err.message)) {
-            this.setSettings({ total_brews: 'Not supported by this machine' }).catch(this.error);
+            statistics.total_brews = 'Not supported by this machine';
           }
           this.error('Total brew count read failed (non-fatal):', safeText(err.message, LOG_TEXT_MAX));
         }
+
+        // Not awaited, and a failed write is only logged: the labels are a
+        // convenience, not worth a failed poll.
+        this._saveStatistics(statistics).catch(this.error);
       }
     } catch (err) {
       this._pollFailCount += 1;

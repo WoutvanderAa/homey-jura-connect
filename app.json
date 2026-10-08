@@ -928,6 +928,45 @@
                 "nl": "Totaal aantal bereidingen zoals de machine zelf rapporteert (@TR:32). Wordt periodiek bijgewerkt; toont \"niet ondersteund door deze machine\" als de machine deze teller niet beantwoordt."
               },
               "value": "—"
+            },
+            {
+              "id": "maintenance_cleaning",
+              "type": "label",
+              "label": {
+                "en": "Cleaning due",
+                "nl": "Reiniging nodig"
+              },
+              "hint": {
+                "en": "Percent towards the next cleaning being due, as reported by the machine itself (@TG:C0). Higher means more due. Updated periodically; shows a dash if the machine doesn't track this or hasn't answered yet.",
+                "nl": "Percentage richting de volgende reiniging, zoals de machine zelf rapporteert (@TG:C0). Hoger betekent meer nodig. Wordt periodiek bijgewerkt; toont een streepje als de machine dit niet bijhoudt of nog niet heeft geantwoord."
+              },
+              "value": "—"
+            },
+            {
+              "id": "maintenance_filter",
+              "type": "label",
+              "label": {
+                "en": "Filter due",
+                "nl": "Filter nodig"
+              },
+              "hint": {
+                "en": "Percent towards the water filter cartridge needing replacement, as reported by the machine itself (@TG:C0). Higher means more due. Updated periodically; shows a dash if the machine has no filter cartridge fitted or hasn't answered yet.",
+                "nl": "Percentage richting vervanging van de waterfilter-cartridge, zoals de machine zelf rapporteert (@TG:C0). Hoger betekent meer nodig. Wordt periodiek bijgewerkt; toont een streepje als de machine geen filtercartridge heeft of nog niet heeft geantwoord."
+              },
+              "value": "—"
+            },
+            {
+              "id": "maintenance_descale",
+              "type": "label",
+              "label": {
+                "en": "Descale due",
+                "nl": "Ontkalken nodig"
+              },
+              "hint": {
+                "en": "Percent towards descaling being due, as reported by the machine itself (@TG:C0). Higher means more due. Updated periodically; shows a dash if the machine doesn't track this or hasn't answered yet.",
+                "nl": "Percentage richting ontkalken, zoals de machine zelf rapporteert (@TG:C0). Hoger betekent meer nodig. Wordt periodiek bijgewerkt; toont een streepje als de machine dit niet bijhoudt of nog niet heeft geantwoord."
+              },
+              "value": "—"
             }
           ]
         }
