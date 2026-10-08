@@ -3,7 +3,7 @@
 const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
-const { JuraClient, AUTH_HASH_RE, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
+const { JuraClient, AUTH_HASH_RE, PairingTimeout, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
 const { redactFrame, clipText } = require('../../lib/frameLog');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
@@ -15,6 +15,11 @@ const POLL_INTERVAL_MS = 10000;
 // -- referenced both when calling JuraClient.brew() and in the
 // BREW_NO_REPLY user message below, so the two can't drift apart.
 const BREW_TIMEOUT_MS = 8000;
+
+// How long an earlier brew that ended in doubt (BREW_NO_REPLY or
+// BREW_CONNECTION_LOST: its command may have reached the machine) still counts
+// when brew() words a failure that sent nothing, see _brewNotSentText.
+const UNCERTAIN_BREW_WINDOW_MS = 60000;
 
 // Maintenance percent (@TG:C0) doesn't change fast enough to need every
 // cycle -- read it once every 30th poll (~5 min at the 10s interval
@@ -84,11 +89,26 @@ const POLL_FAIL_THRESHOLD = 3;
 //                        more than this has not been measured, and the tile
 //                        must not go unavailable because of one. A brew is
 //                        far shorter than this.
+//  BREW_DEADLINE_MS      How long a brew has, from the moment brew() is called,
+//                        to get its command written: a brew that has to wait
+//                        for a poll, for the gap or for a slow connect and is
+//                        not there in time sends nothing and says so (see
+//                        brew()). It limits the sending only: once the command
+//                        is out, the wait for the machine's answer comes on
+//                        top of it. And it does not cut off the gap, the
+//                        socket or the handshake: the message can come later
+//                        than the deadline, up to about 40 s after the tap,
+//                        but after the deadline no @TP: is ever sent. The time
+//                        the Homey interface waits for a flow action must
+//                        therefore be at least max(D + 12.5 s; 40 s), with D
+//                        this value. 30 s is provisional, until measured on
+//                        the machine (step L2).
 const TIMING = Object.freeze({
   RECONNECT_GAP_MS: 20000,
   RECONNECT_MAX_MS: 60000,
   UNAVAILABLE_AFTER_MS: 60000,
   BUSY_MAX_MS: 300000,
+  BREW_DEADLINE_MS: 30000,
 });
 
 // The error that ends a connect which a reset or a delete has cancelled (see
@@ -130,6 +150,11 @@ const BANKED_SUM_KEYS = ['tf', 'tv', 'hu', 'markers', 'other', 'tfGapCount', 'tf
 // not open in time.
 const CONNECT_TIMEOUT_RE = /^connect timeout after /;
 
+// The text of the timeout that JuraClient._doHandshake gives a handshake that
+// was not answered in time (a PairingTimeout), with or without the question
+// that follows it.
+const HANDSHAKE_TIMEOUT_RE = /^no handshake reply within /;
+
 /**
  * Whether a connect failed before there was any TCP session: the socket could
  * not be opened (an error code of UNREACHABLE_CODES: the machine is off or not
@@ -144,13 +169,22 @@ function failedWithoutSession(err) {
 }
 
 function friendlyPollError(err) {
-  if (UNREACHABLE_CODES.has(err.code)) {
+  // Also the connect that timed out: no TCP session, the same as a machine that
+  // is off.
+  if (failedWithoutSession(err)) {
     return 'Machine appears to be off or unreachable on the network.';
   }
   // A reset or a FIN of the machine: the log keeps the raw text, the tile gets
   // a sentence that says what to do (the J.O.E. app is the usual cause).
   if (isMachineClosedError(err)) {
     return 'The machine ended the connection. If the J.O.E. app is connected to the machine, close it; the connection is retried automatically.';
+  }
+  // A handshake the machine did not answer: the raw text asks whether the user
+  // accepted on the machine, which is worded for pairing and means nothing to a
+  // poll or a brew. The log keeps the raw text; the pairing flow (driver.js)
+  // passes it on as it is.
+  if (err instanceof PairingTimeout || HANDSHAKE_TIMEOUT_RE.test(String(err.message))) {
+    return 'The machine did not answer when connecting. If the J.O.E. app is connected to the machine, close it; the connection is retried automatically.';
   }
   return err.message;
 }
@@ -307,6 +341,11 @@ class JuraMachineDevice extends Device {
     // Why the last client that _resetClient() threw away had ended; kept until
     // the next one, as a state.
     this._lastCloseReason = '';
+    // For the text of a brew that sent nothing (see _brewNotSentText): how many
+    // brew() calls of this device are running right now, and when (on the
+    // monotonic clock) the last brew ended in doubt, null until one did.
+    this._brewsRunning = 0;
+    this._lastUncertainBrewAt = null;
     // The frame figures of clients thrown away since the previous health line
     // (see _bankStats), added to those of the current client in _logHealth.
     this._healthBanked = emptyBankedStats();
@@ -701,6 +740,17 @@ class JuraMachineDevice extends Device {
       );
     }
     return Math.min(pauseMs, Math.max(0, this._lastSessionEndAt + pauseMs - Date.now()));
+  }
+
+  /**
+   * TIMING.BREW_DEADLINE_MS of this device. A key that is missing or not a
+   * number falls back to the production value, key by key: a test puts a
+   * `_timing` with only some of the keys on a device, and a deadline of NaN
+   * would make every brew fail.
+   * @returns {number}
+   */
+  _brewDeadlineMs() {
+    return Number.isFinite(this._timing.BREW_DEADLINE_MS) ? this._timing.BREW_DEADLINE_MS : TIMING.BREW_DEADLINE_MS;
   }
 
   /**
@@ -1261,8 +1311,66 @@ class JuraMachineDevice extends Device {
    * translates the displayed level to that wire byte and rejects one
    * this device's profile doesn't have, rather than this method trying
    * to know every machine's own scale.
+   *
+   * The brew has TIMING.BREW_DEADLINE_MS, from the call, to get its command
+   * written; JuraClient.brew() checks that right before it writes (opts.sendBy)
+   * and also whether the connection is still there (opts.reportNotSent). A
+   * brew that is too late, or whose connection is gone, sends nothing and the
+   * user is told so (see _brewNotSentText); the device does not send it again
+   * by itself, the user taps again.
    */
   async brew(productName, overrides = {}) {
+    // The deadline for sending, worked out here and nowhere else: the first
+    // thing, in the same tick as the call, before the settings, the wait for
+    // the gap and the connect. On the monotonic clock of the client, the one
+    // it compares it with (a wall clock that steps would move the deadline).
+    const deadlineMs = this._brewDeadlineMs();
+    const deadlineAt = monotonicMs() + deadlineMs;
+    // Whether another brew() of this device was still running when this one
+    // started, fixed now (see _brewNotSentText).
+    const othersRunning = this._brewsRunning > 0;
+    this._brewsRunning += 1;
+    try {
+      return await this._brewBy(productName, overrides, deadlineAt, othersRunning, deadlineMs);
+    } finally {
+      this._brewsRunning -= 1;
+    }
+  }
+
+  /**
+   * The text for a brew that sent nothing: the deadline had passed
+   * (BREW_DEADLINE) or the connection was gone when the command was to be
+   * written (BREW_NOT_SENT). It says "this brew command", not "nothing was
+   * brewed": with a double tap another tap may already have started a brew, or
+   * may be about to. So when another brew() of this device was running when
+   * this one started (`othersRunning`), is running now (the count includes this
+   * brew itself, so more than 1), or an earlier one ended in doubt less than
+   * UNCERTAIN_BREW_WINDOW_MS ago (BREW_NO_REPLY, BREW_CONNECTION_LOST: its
+   * command may have reached the machine), it adds that another brew may have
+   * started, and then leaves out "Try again.": the user is to check the machine
+   * first.
+   * @param {'BREW_DEADLINE'|'BREW_NOT_SENT'} code
+   * @param {boolean} othersRunning
+   * @param {number} deadlineMs the deadline this brew began with, as brew() worked it out
+   * @returns {string}
+   */
+  _brewNotSentText(code, othersRunning, deadlineMs) {
+    const text =
+      code === 'BREW_DEADLINE'
+        ? `This brew command was not sent: the machine could not be reached within ${Math.round(deadlineMs / 1000)} seconds.`
+        : 'The connection to the machine dropped before this brew command was sent, so it did not reach the machine.';
+    const uncertainRecently =
+      this._lastUncertainBrewAt !== null && monotonicMs() - this._lastUncertainBrewAt < UNCERTAIN_BREW_WINDOW_MS;
+    return othersRunning || this._brewsRunning > 1 || uncertainRecently
+      ? `${text} Another brew may have started: check the machine before trying again.`
+      : `${text} Try again.`;
+  }
+
+  /**
+   * The body of brew(), with the deadline it worked out (the point in time, and
+   * its length for the text) and whether another brew was running at its start.
+   */
+  async _brewBy(productName, overrides, deadlineAt, othersRunning, deadlineMs) {
     const finalOverrides = { ...overrides };
     const settings = this.getSettings();
     if (!('water_amount' in finalOverrides)) {
@@ -1294,14 +1402,30 @@ class JuraMachineDevice extends Device {
     }
     // A brew waits for the gap since the last session ended, if that is still
     // running (at most TIMING.RECONNECT_GAP_MS), and then connects.
-    await this._connectIfNeeded({ waitForGap: true });
+    try {
+      await this._connectIfNeeded({ waitForGap: true });
+    } catch (err) {
+      // The connect failed, so nothing was sent. The log keeps the raw text; the
+      // user gets the sentence the tile shows for the same failure, not a socket
+      // error such as "connect ECONNREFUSED 127.0.0.1:51515". The code stays on
+      // the new error.
+      this.error('Brew failed:', safeText(err.message, LOG_TEXT_MAX));
+      const friendly = new Error(safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX));
+      if (err.code !== undefined) friendly.code = err.code;
+      throw friendly;
+    }
     const { isBrewAccept } = require('../../lib/juraClient');
     // Held in a local: a late failure of this client must not reset a client
     // that has been made since (see _resetClient).
     const client = this._client;
     let reply;
     try {
-      reply = await client.brew(productName, finalOverrides, { retry: true, timeoutMs: BREW_TIMEOUT_MS });
+      reply = await client.brew(productName, finalOverrides, {
+        retry: true,
+        timeoutMs: BREW_TIMEOUT_MS,
+        reportNotSent: true,
+        sendBy: deadlineAt,
+      });
     } catch (err) {
       // JuraClient.brew() throws a coded BrewError for every failure while
       // talking to the machine (other errors, such as an unknown product,
@@ -1310,6 +1434,7 @@ class JuraMachineDevice extends Device {
       // user instead of the technical one.
       this.error('Brew failed:', safeText(err.message, LOG_TEXT_MAX));
       if (err.code === 'BREW_NO_REPLY') {
+        this._lastUncertainBrewAt = monotonicMs();
         throw new Error(
           `The machine did not respond to the brew command within ${BREW_TIMEOUT_MS / 1000} seconds. It may only have woken up from energy saving: check the machine before trying again, so you don't get a second drink.`
         );
@@ -1320,11 +1445,20 @@ class JuraMachineDevice extends Device {
         );
       }
       if (err.code === 'BREW_CONNECTION_LOST') {
+        // Noted before the reset below awaits: a brew queued behind this one
+        // can fail in that time and is worded by it (see _brewNotSentText).
+        this._lastUncertainBrewAt = monotonicMs();
         // The connection itself is gone, so this client is of no use any more
         // (the next brew connects afresh). Not done for the codes above: the
         // machine answered or may still answer, and the connection is fine.
         await this._resetClient('connection lost during a brew', client);
         throw new Error('The connection to the machine dropped during the brew command. Check whether it started before trying again.');
+      }
+      if (err.code === 'BREW_DEADLINE' || err.code === 'BREW_NOT_SENT') {
+        // Nothing was sent in this call. No _resetClient: with a dead
+        // connection the next _connectIfNeeded throws the client away itself,
+        // and with a live one (the deadline) it is fine as it is.
+        throw new Error(this._brewNotSentText(err.code, othersRunning, deadlineMs));
       }
       throw err;
     }
