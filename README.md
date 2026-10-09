@@ -25,7 +25,7 @@ profile per EF code. Confirmed on real hardware so far:
 
 | Model | Profile | Verified | Source |
 |---|---|---|---|
-| E8 (EB) | EF538 | Full: pairing, status, brewing, maintenance percentages, alarms | Maintainer's own machine |
+| E8 (EB) | EF538 | Full: pairing, status, brewing, maintenance percentages, alarms | My own machine |
 | ENA 4 (EA) | EF1013 | Pairing, coffee, espresso, water alarm, tray-missing alarm | [GitHub issue #1](https://github.com/WoutvanderAa/homey-jura-connect/issues/1) |
 | S8 (NAB) | EF1151 | Pairing only, with a security PIN | [GitHub issue #4](https://github.com/WoutvanderAa/homey-jura-connect/issues/4) |
 | E8 (EC) | EF1092 | Alarms | [Homey forum](https://community.homey.app/t/158080) |
@@ -113,8 +113,6 @@ is by the same author.
 **coffee-rank** ([source](https://www.flickr.com/photos/189612330@N06/50330277776)),
 licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
 cropped from the original.
-
-**Driver image**: a photo of the maintainer's own paired E8.
 
 ## Development
 
