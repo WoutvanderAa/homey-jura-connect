@@ -114,8 +114,6 @@ is by the same author.
 licensed [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
 cropped from the original.
 
-**Driver image**: a photo of my own paired E8.
-
 ## Development
 
 ```
