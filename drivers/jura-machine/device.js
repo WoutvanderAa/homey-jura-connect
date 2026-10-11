@@ -328,7 +328,7 @@ class JuraMachineDevice extends Device {
     // available. null is unknown: it has not been checked whether Homey still
     // shows the tile as unavailable from before an app restart, so the first
     // poll that works says setAvailable once, to be sure (see _pollSucceeded).
-    this._lastAliveAt = Date.now();
+    this._lastAliveAt = this._monotonicNow();
     this._busySince = null;
     this._lastFailText = '';
     this._available = null;
@@ -340,7 +340,7 @@ class JuraMachineDevice extends Device {
     // connection was made.
     this._healthPolls = { ok: 0, busy: 0, fail: 0 };
     this._healthReconnects = 0;
-    this._lastHealthAt = Date.now();
+    this._lastHealthAt = this._monotonicNow();
     this._hasConnected = false;
     this._sessionStartedAt = null;
     // Why the last client that _resetClient() threw away had ended; kept until
@@ -746,9 +746,9 @@ class JuraMachineDevice extends Device {
    * TIMING.RECONNECT_MAX_MS: the gap, twice the gap, then the maximum. 0 when
    * nothing has to be waited for. `forBrew`: a brew waits for the gap only,
    * never for the longer wait after failed connects, so it is at most
-   * TIMING.RECONNECT_GAP_MS. Never more than the pause itself either, whatever
-   * the wall clock did since the session ended: a clock that jumped back would
-   * otherwise add the jump to it.
+   * TIMING.RECONNECT_GAP_MS. Counted on the monotonic clock (`_monotonicNow`), so a
+   * wall clock that jumped since the session ended, back or forward, does not
+   * change it; and never more than the pause itself either.
    * @param {boolean} [forBrew]
    * @returns {number}
    */
@@ -762,7 +762,7 @@ class JuraMachineDevice extends Device {
         Math.min(timing.RECONNECT_GAP_MS * Math.pow(2, this._connectFailures - 1), timing.RECONNECT_MAX_MS)
       );
     }
-    return Math.min(pauseMs, Math.max(0, this._lastSessionEndAt + pauseMs - Date.now()));
+    return Math.min(pauseMs, Math.max(0, this._lastSessionEndAt + pauseMs - this._monotonicNow()));
   }
 
   /**
@@ -784,7 +784,7 @@ class JuraMachineDevice extends Device {
    * the catch of _doConnect.
    */
   _noteSessionEnd() {
-    this._lastSessionEndAt = Date.now();
+    this._lastSessionEndAt = this._monotonicNow();
   }
 
   /**
@@ -866,7 +866,7 @@ class JuraMachineDevice extends Device {
       // A connection that comes after an earlier one is a reconnect.
       if (this._hasConnected) this._healthReconnects += 1;
       this._hasConnected = true;
-      this._sessionStartedAt = Date.now();
+      this._sessionStartedAt = this._monotonicNow();
       // The backoff starts over. The tile is not set available here: only a
       // poll that reads a status does that (see _poll).
       this._connectFailures = 0;
@@ -1034,7 +1034,7 @@ class JuraMachineDevice extends Device {
           // measured) the connection is reset, once, and the busy time starts
           // over, so that a new connection that is still busy gets another
           // full BUSY_MAX_MS: one reset per BUSY_MAX_MS at most.
-          const now = Date.now();
+          const now = this._monotonicNow();
           if (this._busySince === null) this._busySince = now;
           const busyTooLong = now - this._busySince > this._timing.BUSY_MAX_MS;
           this._pollFailCount = 0;
@@ -1199,7 +1199,7 @@ class JuraMachineDevice extends Device {
    * unavailable: see _poll.)
    */
   _pollSucceeded() {
-    this._lastAliveAt = Date.now();
+    this._lastAliveAt = this._monotonicNow();
     this._lastFailText = '';
     if (this._available === true) return;
     this._setTile(true);
@@ -1215,7 +1215,7 @@ class JuraMachineDevice extends Device {
    */
   _updateAvailability() {
     if (this._available === false) return;
-    if (Date.now() - this._lastAliveAt < this._timing.UNAVAILABLE_AFTER_MS) return;
+    if (this._monotonicNow() - this._lastAliveAt < this._timing.UNAVAILABLE_AFTER_MS) return;
     this._setTile(false, this._lastFailText || 'No status from the machine.');
   }
 
@@ -1295,7 +1295,7 @@ class JuraMachineDevice extends Device {
    */
   _logHealth() {
     try {
-      const now = Date.now();
+      const now = this._monotonicNow();
       if (now - this._lastHealthAt < HEALTH_EVERY_MS) return;
       this._lastHealthAt = now;
       const current = this._client ? this._client.takeStats() : null;
@@ -1520,6 +1520,13 @@ class JuraMachineDevice extends Device {
 // test can put a scaled copy on one instance, before or after onInit, without
 // the production values ever changing.
 JuraMachineDevice.prototype._timing = TIMING;
+
+// The clock every wait and duration of this device is measured on, see
+// monotonicMs in lib/juraClient.js: a step of the wall clock (an NTP
+// correction, a manual change) does not move it. It sits on the prototype for
+// the same reason as `_timing`: a test puts a steerable clock on one instance.
+// Only differences between two readings mean anything.
+JuraMachineDevice.prototype._monotonicNow = monotonicMs;
 
 module.exports = JuraMachineDevice;
 // Next to the class, so a test can read the production values.
