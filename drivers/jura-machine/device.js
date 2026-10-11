@@ -3,7 +3,7 @@
 const { Device } = require('homey');
 const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
-const { JuraClient, AUTH_HASH_RE, PairingTimeout, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
+const { JuraClient, MachineStatus, AUTH_HASH_RE, PairingTimeout, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
 const { redactFrame, clipText } = require('../../lib/frameLog');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
@@ -349,6 +349,15 @@ class JuraMachineDevice extends Device {
     this._pollCount = 0;
     this._pollFailCount = 0;
     this._polling = false;
+    // What _applyStatus last applied: the raw status and the text of the
+    // `Status:` line (both null: none yet, or the connection was reset since),
+    // the warning text (undefined: none set by this device yet, or the last
+    // call failed, null: the warning was cleared), and the capabilities whose
+    // last set failed and are set again whatever their value, see there.
+    this._appliedRawHex = null;
+    this._appliedStatusLine = null;
+    this._appliedWarning = undefined;
+    this._retryCaps = new Set();
     // When the last session, or attempt at one, ended, whoever ended it (see
     // _noteSessionEnd); null until the first one, so the very first connect
     // does not wait.
@@ -721,6 +730,29 @@ class JuraMachineDevice extends Device {
           this._resetClient('closed').catch(this.error);
         }
       },
+      // The machine sends a @TF: status by itself about every 2 s: it is
+      // applied as it comes in, and not only when the poll reads one, so a
+      // short state and an alarm show at once. Only the current client's: a
+      // push of one that was reset meanwhile (the listener runs a moment after
+      // the frame, see _notifyPush in the client) changes nothing. What is
+      // applied is the newest status the client has, not the frame that was
+      // announced: frames that arrive in one socket packet are announced one
+      // after the other, and the poll may have applied the last of them by
+      // then, which an older frame must not undo. A push says nothing about
+      // whether the machine can be reached: that stays with the poll (see
+      // _poll). The client swallows whatever the listener throws, so a failure
+      // is logged here.
+      onPush: (reply) => {
+        if (this._client !== client) return;
+        if (!reply.startsWith('@TF:')) return;
+        const latest = client.latestStatus;
+        if (!latest) return;
+        try {
+          this._applyStatus(MachineStatus.parse(latest.reply, client.profile));
+        } catch (err) {
+          this.error('Status push could not be applied:', safeText(err.message, LOG_TEXT_MAX));
+        }
+      },
     });
     return client;
   }
@@ -1030,6 +1062,9 @@ class JuraMachineDevice extends Device {
     if (!current) return;
     this._clientGeneration += 1;
     this._client = null;
+    // The next connection applies the status again, once (see _applyStatus).
+    this._appliedRawHex = null;
+    this._appliedStatusLine = null;
     this._lastCloseReason = safeText((current.lastCloseReason && current.lastCloseReason.message) || reason);
     this._bankStats(current);
     this._noteSessionEnd();
@@ -1130,40 +1165,7 @@ class JuraMachineDevice extends Device {
       this._busySince = null;
       this._healthPolls.ok += 1;
       this._pollSucceeded();
-      this.log('Status:', status.activeAlerts.join(', ') || '(none)');
-
-      // onoff reflects "not in standby" -- the closest read-only analogue
-      // of power state this protocol exposes.
-      this.setCapabilityValue('onoff', !status.activeAlerts.includes('goodbye')).catch(this.error);
-
-      const hasError = status.errors.length > 0;
-      this.setCapabilityValue('alarm_generic', hasError).catch(this.error);
-
-      // fill_water, no_beans, insert_tray, empty_tray and empty_grounds
-      // are all present (by name) in all 72 bundled profiles -- see
-      // lib/profiles/README.md's alert survey -- so these are safe to
-      // compute for any paired model, not just the E8.
-      this.setCapabilityValue('alarm_water', status.activeAlerts.includes('fill_water')).catch(this.error);
-      this.setCapabilityValue('alarm_beans', status.activeAlerts.includes('no_beans')).catch(this.error);
-      // Two genuinely different physical states, not the same thing
-      // worded differently: alarm_tray = present but full, needs
-      // emptying; alarm_tray_missing = not inserted at all.
-      this.setCapabilityValue(
-        'alarm_tray',
-        ['empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name))
-      ).catch(this.error);
-      this.setCapabilityValue('alarm_tray_missing', status.activeAlerts.includes('insert_tray')).catch(this.error);
-      // ~96-97% profile coverage, not 100% -- on profiles that lack the
-      // alert name entirely, activeAlerts simply never contains it, so
-      // this stays false rather than erroring.
-      this.setCapabilityValue('alarm_outlet_missing', status.activeAlerts.includes('outlet_missing')).catch(this.error);
-      this.setCapabilityValue('alarm_rear_cover_missing', status.activeAlerts.includes('rear_cover_missing')).catch(this.error);
-
-      if (hasError) {
-        this.setWarning(status.errors.join(', ')).catch(this.error);
-      } else {
-        this.unsetWarning().catch(this.error);
-      }
+      this._applyStatus(status, { fromPoll: true });
 
       this._pollCount += 1;
       if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) {
@@ -1249,6 +1251,107 @@ class JuraMachineDevice extends Device {
       this._polling = false;
       this._updateAvailability();
       this._logHealth();
+    }
+  }
+
+  /**
+   * Apply a status (a parsed @TF:) to the device: the `Status:` log line,
+   * onoff, the alarms and the warning. Two callers: the poll, with the status
+   * it read (`fromPoll`), and the client's `onPush` listener (see
+   * _buildClient), with the newest @TF: the machine sent by itself. It does
+   * nothing for availability, the busy time or the maintenance reads: those
+   * stay with the poll.
+   *
+   * Applying the same thing twice must cost nothing, because the machine
+   * repeats the same status about every 2 s and the poll often reads the very
+   * @TF: that was pushed a moment before. So a push of a raw status equal to
+   * the one applied last (`_appliedRawHex`) does nothing, not even a log line.
+   * The poll does not stop there: it looks at every capability and at the
+   * warning on every poll, so that whatever a failed call left behind is put
+   * right by the next poll (see below), as it was before the pushes came in.
+   * A capability is only set when its value differs from the one it has, or
+   * when its last set failed (`_retryCaps`: Homey may store the value before
+   * the call has succeeded, so after a failure the comparison alone sees no
+   * difference), and the warning only when its text differs from the one last
+   * set (a failed call empties that text, so the next time it is tried
+   * again). A capability that cannot be read is logged and left alone, and
+   * never makes this throw: the others and the warning are still applied, and
+   * the poll does not fail over it.
+   *
+   * The `Status:` line is written when the raw status changed and its text is
+   * not the one last written: a bit the profile does not know changes the raw
+   * status and not the text. A reset of the client empties `_appliedRawHex` and
+   * the last text (see _resetClient), so a connection that is made again
+   * applies the status once more, and the log says so once.
+   * @param {{rawHex: string, activeAlerts: string[], errors: string[]}} status
+   * @param {{fromPoll?: boolean}} [opts]
+   */
+  _applyStatus(status, { fromPoll = false } = {}) {
+    const changed = status.rawHex !== this._appliedRawHex;
+    if (!changed && !fromPoll) return;
+    this._appliedRawHex = status.rawHex;
+    const line = status.activeAlerts.join(', ') || '(none)';
+    if (changed && line !== this._appliedStatusLine) {
+      this._appliedStatusLine = line;
+      this.log('Status:', line);
+    }
+
+    const setIfChanged = (cap, value) => {
+      let differs;
+      try {
+        differs = this._retryCaps.has(cap) || this.getCapabilityValue(cap) !== value;
+      } catch (err) {
+        this.error('Status capability could not be read:', cap, safeText(err.message, LOG_TEXT_MAX));
+        return;
+      }
+      if (!differs) return;
+      this._retryCaps.delete(cap);
+      this.setCapabilityValue(cap, value).catch((err) => {
+        this._retryCaps.add(cap);
+        this.error(err);
+      });
+    };
+
+    // onoff reflects "not in standby" -- the closest read-only analogue
+    // of power state this protocol exposes.
+    setIfChanged('onoff', !status.activeAlerts.includes('goodbye'));
+
+    const hasError = status.errors.length > 0;
+    setIfChanged('alarm_generic', hasError);
+
+    // fill_water, no_beans, insert_tray, empty_tray and empty_grounds
+    // are all present (by name) in all 72 bundled profiles -- see
+    // lib/profiles/README.md's alert survey -- so these are safe to
+    // compute for any paired model, not just the E8.
+    setIfChanged('alarm_water', status.activeAlerts.includes('fill_water'));
+    setIfChanged('alarm_beans', status.activeAlerts.includes('no_beans'));
+    // Two genuinely different physical states, not the same thing
+    // worded differently: alarm_tray = present but full, needs
+    // emptying; alarm_tray_missing = not inserted at all.
+    setIfChanged('alarm_tray', ['empty_tray', 'empty_grounds'].some((name) => status.activeAlerts.includes(name)));
+    setIfChanged('alarm_tray_missing', status.activeAlerts.includes('insert_tray'));
+    // ~96-97% profile coverage, not 100% -- on profiles that lack the
+    // alert name entirely, activeAlerts simply never contains it, so
+    // this stays false rather than erroring.
+    setIfChanged('alarm_outlet_missing', status.activeAlerts.includes('outlet_missing'));
+    setIfChanged('alarm_rear_cover_missing', status.activeAlerts.includes('rear_cover_missing'));
+
+    // The warning text of the last call, null after an unsetWarning, undefined
+    // after a call that failed: the very first status always makes a call
+    // (undefined differs from both), which also clears a warning that was still
+    // showing from before an app restart.
+    const warning = hasError ? status.errors.join(', ') : null;
+    if (warning !== this._appliedWarning) {
+      this._appliedWarning = warning;
+      const failed = (err) => {
+        this._appliedWarning = undefined;
+        this.error(err);
+      };
+      if (hasError) {
+        this.setWarning(warning).catch(failed);
+      } else {
+        this.unsetWarning().catch(failed);
+      }
     }
   }
 
