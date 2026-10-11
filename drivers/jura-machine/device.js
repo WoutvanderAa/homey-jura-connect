@@ -52,10 +52,14 @@ const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 
 // brew (see _readStatusOnce in lib/juraClient.js). Since 0.12.2 any
 // other frame counts as a sign of life there, so only genuine silence
 // still counts as a failed poll here.
-// Since 0.13.0 this no longer decides anything: the tile goes unavailable
-// on time without a successful poll (TIMING.UNAVAILABLE_AFTER_MS below), not
-// on a number of failed polls. It is only still the "/3" of the "Poll failed
-// (n/3)" log line, which reports and tests rely on.
+// Since 0.13.0 this no longer decides anything for the tile: it goes
+// unavailable on time without a successful poll (TIMING.UNAVAILABLE_AFTER_MS
+// below), not on a number of failed polls. It is still the "/3" of the "Poll
+// failed (n/3)" log line, which reports and tests rely on, and it is where the
+// log goes quiet: the first POLL_FAIL_THRESHOLD failed polls in a row get their
+// own line, the last of them is followed by one line that says so (see
+// _logPollFailure), and from then on only a summary every
+// TIMING.QUIET_SUMMARY_MS, until a poll works again.
 const POLL_FAIL_THRESHOLD = 3;
 
 // Everything about when this device connects again and when its tile goes
@@ -108,12 +112,18 @@ const POLL_FAIL_THRESHOLD = 3;
 //                        therefore be at least max(D + 12.5 s; 40 s), with D
 //                        this value. 30 s is provisional, until measured on
 //                        the machine (step L2).
+//  QUIET_SUMMARY_MS      While the log is quiet (POLL_FAIL_THRESHOLD failed
+//                        polls in a row, see _logPollFailure) it gets one
+//                        summary line this often, counted from the line that
+//                        said the log went quiet. Checked at every poll, so it
+//                        can come up to a poll cycle late.
 const TIMING = Object.freeze({
   RECONNECT_GAP_MS: 20000,
   RECONNECT_MAX_MS: 60000,
   UNAVAILABLE_AFTER_MS: 60000,
   BUSY_MAX_MS: 300000,
   BREW_DEADLINE_MS: 30000,
+  QUIET_SUMMARY_MS: 900000,
 });
 
 // The error that ends a connect which a reset or a delete has cancelled (see
@@ -197,6 +207,42 @@ function friendlyPollError(err) {
 /** Text that may quote a frame, made safe to show or log: see MACHINE_TEXT_MAX. */
 function safeText(text, max = MACHINE_TEXT_MAX) {
   return clipText(redactFrame(text), max);
+}
+
+// What an error code looks like when it is a name (EHOSTUNREACH, ETIMEDOUT) and
+// not text: see pollFailClass.
+const ERROR_CODE_RE = /^[A-Z][A-Z0-9_]{1,40}$/;
+
+// The start of the message that _doConnect gives a handshake the machine
+// rejected (a state other than CORRECT, such as WRONG_HASH after the auth token
+// changed). That error has no code, and the text is made by the device itself,
+// not taken from the machine: the machine's own text is not in the part that is
+// matched.
+const HANDSHAKE_REJECTED_RE = /^Handshake rejected \(/;
+
+/**
+ * The kind of a failed poll, as one short word or two for the quiet log lines
+ * (see _logPollFailure): never the message of the error, which can quote an IP
+ * address or a frame. The error's own code when it is a name (EHOSTUNREACH,
+ * ECONNREFUSED, ETIMEDOUT), else "handshake rejected" for a handshake the
+ * machine rejected, else "no reply" for a read that got no answer, else
+ * "machine closed" for a connection the machine ended, else "error".
+ */
+function pollFailClass(err) {
+  if (typeof err.code === 'string' && ERROR_CODE_RE.test(err.code)) return err.code;
+  if (HANDSHAKE_REJECTED_RE.test(String(err.message))) return 'handshake rejected';
+  if (/^no reply to/.test(String(err.message))) return 'no reply';
+  if (isMachineClosedError(err)) return 'machine closed';
+  return 'error';
+}
+
+/** A time span for the log, rounded down: "42 s", "17 min" or "3 h 5 min". */
+function formatDuration(ms) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
 /** The frame figures of clients that are gone: all zero. */
@@ -322,6 +368,17 @@ class JuraMachineDevice extends Device {
     // Whether the log already says that polls are being skipped for the gap,
     // so a run of skipped polls gives one line (see _poll).
     this._pollSkipLogged = false;
+    // Whether the last end noted by _noteSessionEnd was that of a real session
+    // (a TCP connection that was open and then ended), and not of a connect that
+    // never got one: only the first needs the pause the log line of a skipped
+    // poll talks about (see _skipPoll).
+    this._lastEndHadSession = true;
+    // For the quiet log (see _logPollFailure): when the first failed poll of the
+    // run in progress was (null when none), when the next summary is due (null
+    // unless the log has gone quiet), and what kind the last failed poll was.
+    this._failRunSince = null;
+    this._quietNextSummaryAt = null;
+    this._lastFailClass = '';
     // For the tile: the last time a poll showed the machine alive (a status
     // was read, or it answered busy), since when the machine has only
     // answered busy, what the last failed poll said, and whether the tile is
@@ -557,8 +614,15 @@ class JuraMachineDevice extends Device {
       // The backoff of the old address or profile means nothing for the new
       // one, so the new one is not made to wait for it. The gap stays: it
       // counts from this moment, also when there was no client to reset (a
-      // reset without a client notes no end of a session by itself).
+      // reset without a client notes no end of a session by itself). The same
+      // goes for the run of failed polls (see _logPollFailure): what the old
+      // address did not answer says nothing about the new one, so the run ends
+      // here, without a line for it, and a new address that does not answer
+      // gets its own "Poll failed (n/3)" lines and its own transition line.
       this._connectFailures = 0;
+      this._pollFailCount = 0;
+      this._failRunSince = null;
+      this._quietNextSummaryAt = null;
       this._noteSessionEnd();
     }
 
@@ -781,10 +845,12 @@ class JuraMachineDevice extends Device {
    * counts from now. Called wherever a client leaves or is closed, whoever
    * ended it: _resetClient (our own close, the machine's FIN or RST via
    * onClose, a failed poll, a failed connect), _closeIfStale and the close in
-   * the catch of _doConnect.
+   * the catch of _doConnect. It counts as the end of a real session, see
+   * `_lastEndHadSession`.
    */
   _noteSessionEnd() {
     this._lastSessionEndAt = this._monotonicNow();
+    this._lastEndHadSession = true;
   }
 
   /**
@@ -838,7 +904,8 @@ class JuraMachineDevice extends Device {
       if (result.state !== 'CORRECT') {
         // WRONG_HASH usually means the machine was reset/re-paired via the
         // official J.O.E. app since we last stored a hash -- surfacing
-        // this clearly beats a cryptic downstream timeout.
+        // this clearly beats a cryptic downstream timeout. The start of the
+        // text is what HANDSHAKE_REJECTED_RE recognises: keep the two together.
         throw new Error(
           `Handshake rejected (${result.state}). If this persists, remove and re-pair the device.`
         );
@@ -888,13 +955,18 @@ class JuraMachineDevice extends Device {
       // _closeIfStale), and one that never had a TCP session (see
       // failedWithoutSession): a machine that is off cannot be churning, and
       // must not make the wait after it is switched on any longer than the gap.
-      if (failure.code !== CONNECT_CANCELLED_CODE && !failedWithoutSession(failure)) this._connectFailures += 1;
+      const withoutSession = failedWithoutSession(failure);
+      if (failure.code !== CONNECT_CANCELLED_CODE && !withoutSession) this._connectFailures += 1;
       if (this._client === client) {
         await this._resetClient(failure.message);
       } else {
         await client.close().catch(() => {});
         this._noteSessionEnd();
       }
+      // A connect that never had a TCP session (see failedWithoutSession) ended
+      // no session: the wait after it is the device's own, not a pause the
+      // machine needs (see _skipPoll).
+      if (failure.code !== CONNECT_CANCELLED_CODE && withoutSession) this._lastEndHadSession = false;
       throw failure;
     }
   }
@@ -1037,6 +1109,7 @@ class JuraMachineDevice extends Device {
           const now = this._monotonicNow();
           if (this._busySince === null) this._busySince = now;
           const busyTooLong = now - this._busySince > this._timing.BUSY_MAX_MS;
+          this._endFailRun();
           this._pollFailCount = 0;
           this._lastAliveAt = now;
           this._healthPolls.busy += 1;
@@ -1052,6 +1125,7 @@ class JuraMachineDevice extends Device {
         }
         throw err;
       }
+      this._endFailRun();
       this._pollFailCount = 0;
       this._busySince = null;
       this._healthPolls.ok += 1;
@@ -1160,7 +1234,7 @@ class JuraMachineDevice extends Device {
       this._pollFailCount += 1;
       this._healthPolls.fail += 1;
       this._busySince = null;
-      this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, safeText(err.message, LOG_TEXT_MAX));
+      this._logPollFailure(err);
       // What the tile shows if this failure is still the latest one when the
       // time without a successful poll runs out (see _updateAvailability).
       // The message can quote a frame (redactFrame) and goes on the tile, so
@@ -1179,15 +1253,107 @@ class JuraMachineDevice extends Device {
   }
 
   /**
+   * A failed poll goes to the log. The first POLL_FAIL_THRESHOLD in a row get a
+   * line of their own, "Poll failed (n/3)", with the message of the error. The
+   * last of them is followed by one line that says the log goes quiet: from
+   * then on a failed poll writes nothing (and neither does a skipped one, see
+   * _skipPoll), and every TIMING.QUIET_SUMMARY_MS one line sums it up, until a
+   * poll works again (see _endFailRun). So a machine that is switched off for
+   * days leaves a few lines per day, and not one per poll. Only the kind of the
+   * failure is in the quiet lines (see pollFailClass), never its message, which
+   * can quote an address. `_pollFailCount` is not capped: only what is logged is.
+   * @param {Error} err
+   */
+  _logPollFailure(err) {
+    const now = this._monotonicNow();
+    if (this._failRunSince === null) this._failRunSince = now;
+    this._lastFailClass = pollFailClass(err);
+    if (this._quietNextSummaryAt !== null) {
+      this._logQuietSummary(now);
+      return;
+    }
+    this.error(`Poll failed (${this._pollFailCount}/${POLL_FAIL_THRESHOLD}):`, safeText(err.message, LOG_TEXT_MAX));
+    if (this._pollFailCount < POLL_FAIL_THRESHOLD) return;
+    const everyMs = this._quietSummaryMs();
+    this._quietNextSummaryAt = now + everyMs;
+    this.error(
+      `Machine unreachable: ${POLL_FAIL_THRESHOLD} polls in a row failed (last: ${this._lastFailClass}). ` +
+        `Further failures are not logged one by one; a summary follows every ${formatDuration(everyMs)}.`
+    );
+  }
+
+  /**
+   * While the log is quiet (see _logPollFailure): one summary line when a
+   * TIMING.QUIET_SUMMARY_MS is up, counted from the line that said the log went
+   * quiet. Called by every poll cycle that failed or was skipped. The next one
+   * is worked out from the schedule and not from now, so that a cycle that comes
+   * late does not push the later ones back (over a long outage that would lose
+   * a summary every few), and when whole periods were missed it is the first
+   * one still ahead, not a line for each missed one. The time is since the first
+   * failed poll of the run, as in the line that ends it (see _endFailRun).
+   * @param {number} now
+   */
+  _logQuietSummary(now) {
+    if (this._quietNextSummaryAt === null || now < this._quietNextSummaryAt) return;
+    const everyMs = this._quietSummaryMs();
+    this._quietNextSummaryAt += (Math.floor((now - this._quietNextSummaryAt) / everyMs) + 1) * everyMs;
+    this.error(
+      `Machine still unreachable for ${formatDuration(now - this._failRunSince)}: ${this._pollFailCount} polls failed, last: ${this._lastFailClass}.`
+    );
+  }
+
+  /**
+   * A poll worked (a status was read, or the machine answered busy: the places
+   * that count as a sign of life, see _lastAliveAt), so a run of failed polls is
+   * over. When it had made the log go quiet, that gets one line, with the time
+   * since the first failed poll and the number of failed polls (so it is called
+   * before `_pollFailCount` starts over); a run that did not gets none. Never
+   * throws: it only looks at what _logPollFailure kept. The run is cleared
+   * before the line is written, so that the log does not stay quiet for good
+   * should writing it ever throw.
+   */
+  _endFailRun() {
+    const wasQuiet = this._quietNextSummaryAt !== null;
+    const lastedMs = wasQuiet ? this._monotonicNow() - this._failRunSince : 0;
+    const failedPolls = this._pollFailCount;
+    this._quietNextSummaryAt = null;
+    this._failRunSince = null;
+    if (wasQuiet) this.log(`Machine reachable again after ${formatDuration(lastedMs)} and ${failedPolls} failed polls.`);
+  }
+
+  /**
+   * TIMING.QUIET_SUMMARY_MS of this device. A key that is missing or not a
+   * positive number falls back to the production value, as for the brew
+   * deadline (see _brewDeadlineMs): a test puts a `_timing` with only some of
+   * the keys on a device.
+   * @returns {number}
+   */
+  _quietSummaryMs() {
+    const ms = this._timing.QUIET_SUMMARY_MS;
+    return Number.isFinite(ms) && ms > 0 ? ms : TIMING.QUIET_SUMMARY_MS;
+  }
+
+  /**
    * A poll that is skipped because the machine is still given time since its
    * last session ended (see _connectIfNeeded). It is no failure and counts for
-   * nothing; the log gets one line for a whole run of skipped polls.
+   * nothing; the log gets one line for a whole run of skipped polls, and none
+   * while the log is quiet (see _logPollFailure), only the summary when it is
+   * due. The line only says the machine needs a pause when the last end was a
+   * real session (see `_lastEndHadSession`): after a connect that never got one
+   * (a machine that is off or refuses) the wait is the device's own.
    */
   _skipPoll() {
+    if (this._quietNextSummaryAt !== null) {
+      this._logQuietSummary(this._monotonicNow());
+      return;
+    }
     if (this._pollSkipLogged) return;
     this._pollSkipLogged = true;
+    const waitS = Math.ceil(this._reconnectWaitMs() / 1000);
     this.log(
-      `Poll skipped: waiting ${Math.ceil(this._reconnectWaitMs() / 1000)} s before connecting again (the machine needs a pause after a connection ends).`
+      this._lastEndHadSession
+        ? `Poll skipped: waiting ${waitS} s before connecting again (the machine needs a pause after a connection ends).`
+        : `Poll skipped: waiting ${waitS} s before the next connection attempt.`
     );
   }
 
@@ -1225,7 +1391,8 @@ class JuraMachineDevice extends Device {
    * rejects it, the state stays as it was, so that the next poll tries again
    * (otherwise the tile could stay wrong for good). While a call is still on
    * its way no second one is made, so a call that takes a while is not
-   * repeated by the next poll. Never rejects.
+   * repeated by the next poll. A line in the log says what Homey was told, once
+   * it has taken the call and not before. Never rejects.
    * @param {boolean} available
    * @param {string} [text]
    */
@@ -1238,7 +1405,15 @@ class JuraMachineDevice extends Device {
       } else {
         await this.setUnavailable(text);
       }
+      const wasAvailable = this._available;
       this._available = available;
+      if (!available) {
+        this.log(`Tile unavailable: ${text}`);
+      } else if (wasAvailable === null) {
+        this.log('Tile available: first status after app start.');
+      } else if (wasAvailable === false) {
+        this.log('Tile available again: a status was read.');
+      }
     } catch (err) {
       this.error(
         `${available ? 'setAvailable' : 'setUnavailable'} failed, it is tried again at the next poll:`,
@@ -1291,10 +1466,14 @@ class JuraMachineDevice extends Device {
    * number, not an average of averages. With no client right now (the last
    * poll failed and closed it) only the banked figures count. The banked
    * figures start over after the line is written, like the poll counts.
+   * Nothing is written while the log is quiet (see _logPollFailure) and there
+   * is no connection: nothing has happened that the line could tell. The counts
+   * are kept, so the first line after it sums up that time.
    * Never throws: a problem with this line must not break polling.
    */
   _logHealth() {
     try {
+      if (this._quietNextSummaryAt !== null && !this._client) return;
       const now = this._monotonicNow();
       if (now - this._lastHealthAt < HEALTH_EVERY_MS) return;
       this._lastHealthAt = now;
