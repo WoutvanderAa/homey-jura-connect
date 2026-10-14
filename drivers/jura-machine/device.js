@@ -62,6 +62,21 @@ const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ECONNREFUSED', 'ETIMEDOUT', 
 // TIMING.QUIET_SUMMARY_MS, until a poll works again.
 const POLL_FAIL_THRESHOLD = 3;
 
+// When the machine is switched off it sends a @TF: with this alert set (the name
+// is the same in all 72 bundled profiles), the announcement that it is
+// switching off, and goes quiet about 20 s later: see _noteStatusForSwitchOff.
+const SWITCH_OFF_ALERT = 'switch_off_delay_active';
+
+// Alerts that are the machine switching off and no fault, whatever severity a
+// profile gives them (it is `error` in all 72): they count for neither the
+// generic alarm nor the warning (see _applyStatus). please_wait comes just
+// before the announcement. Both stay in the `Status:` line.
+const NOT_A_FAULT_ALERTS = new Set([SWITCH_OFF_ALERT, 'please_wait']);
+
+// What the tile says from the moment the machine is lost after it announced
+// that it is switching off (see _poll).
+const SWITCHED_OFF_TEXT = 'The machine is switched off.';
+
 // Everything about when this device connects again and when its tile goes
 // unavailable. One frozen object: a test scales a copy on the instance
 // (`device._timing = { ...TIMING, RECONNECT_GAP_MS: 200 }`) and never touches
@@ -117,6 +132,16 @@ const POLL_FAIL_THRESHOLD = 3;
 //                        summary line this often, counted from the line that
 //                        said the log went quiet. Checked at every poll, so it
 //                        can come up to a poll cycle late.
+//  SWITCH_OFF_WINDOW_MS  How long after the machine announced that it is
+//                        switching off (see _noteStatusForSwitchOff) a poll
+//                        that fails is the machine having been switched off,
+//                        and no failure (see _poll). Measured on the machine:
+//                        it stops answering 19.5 to 27.9 s after the
+//                        announcement, so this is more than four times that.
+//                        A poll that works inside the window does not end it:
+//                        the machine goes on answering for about 20 s. An
+//                        announcement that is not followed by a loss within
+//                        the window lapses without a trace.
 const TIMING = Object.freeze({
   RECONNECT_GAP_MS: 20000,
   RECONNECT_MAX_MS: 60000,
@@ -124,6 +149,7 @@ const TIMING = Object.freeze({
   BUSY_MAX_MS: 300000,
   BREW_DEADLINE_MS: 30000,
   QUIET_SUMMARY_MS: 900000,
+  SWITCH_OFF_WINDOW_MS: 120000,
 });
 
 // The error that ends a connect which a reset or a delete has cancelled (see
@@ -388,6 +414,15 @@ class JuraMachineDevice extends Device {
     this._failRunSince = null;
     this._quietNextSummaryAt = null;
     this._lastFailClass = '';
+    // For the switch-off (see _noteStatusForSwitchOff, _poll): when the machine
+    // last announced that it is switching off (null: it did not, or the run of
+    // failed polls it led to is over), whether the run of failed polls in
+    // progress is the machine being switched off, and how many polls of that run
+    // failed. Those are not counted in `_pollFailCount`: that is the "n" of the
+    // "Poll failed (n/3)" lines, and a machine that is switched off is no failure.
+    this._switchOffAnnouncedAt = null;
+    this._switchedOff = false;
+    this._offFailedPolls = 0;
     // For the tile: the last time a poll showed the machine alive (a status
     // was read, or it answered busy), since when the machine has only
     // answered busy, what the last failed poll said, and whether the tile is
@@ -627,11 +662,15 @@ class JuraMachineDevice extends Device {
       // goes for the run of failed polls (see _logPollFailure): what the old
       // address did not answer says nothing about the new one, so the run ends
       // here, without a line for it, and a new address that does not answer
-      // gets its own "Poll failed (n/3)" lines and its own transition line.
+      // gets its own "Poll failed (n/3)" lines and its own transition line. So
+      // does what the old address said about switching off (see _poll).
       this._connectFailures = 0;
       this._pollFailCount = 0;
       this._failRunSince = null;
       this._quietNextSummaryAt = null;
+      this._switchOffAnnouncedAt = null;
+      this._switchedOff = false;
+      this._offFailedPolls = 0;
       this._noteSessionEnd();
     }
 
@@ -740,15 +779,20 @@ class JuraMachineDevice extends Device {
       // after the other, and the poll may have applied the last of them by
       // then, which an older frame must not undo. A push says nothing about
       // whether the machine can be reached: that stays with the poll (see
-      // _poll). The client swallows whatever the listener throws, so a failure
-      // is logged here.
+      // _poll). The announcement that the machine is switching off is looked
+      // for in the frame that was announced as well, not only in `latest`: it
+      // is short, and a newer frame from the same socket packet is what
+      // `latest` is by then (see _noteStatusForSwitchOff). The client swallows
+      // whatever the listener throws, so a failure is logged here.
       onPush: (reply) => {
         if (this._client !== client) return;
         if (!reply.startsWith('@TF:')) return;
         const latest = client.latestStatus;
         if (!latest) return;
         try {
-          this._applyStatus(MachineStatus.parse(latest.reply, client.profile));
+          const pushed = MachineStatus.parse(reply, client.profile);
+          this._noteStatusForSwitchOff(pushed);
+          this._applyStatus(latest.reply === reply ? pushed : MachineStatus.parse(latest.reply, client.profile));
         } catch (err) {
           this.error('Status push could not be applied:', safeText(err.message, LOG_TEXT_MAX));
         }
@@ -1165,6 +1209,7 @@ class JuraMachineDevice extends Device {
       this._busySince = null;
       this._healthPolls.ok += 1;
       this._pollSucceeded();
+      this._noteStatusForSwitchOff(status);
       this._applyStatus(status, { fromPoll: true });
 
       this._pollCount += 1;
@@ -1233,15 +1278,29 @@ class JuraMachineDevice extends Device {
         this._saveStatistics(statistics).catch(this.error);
       }
     } catch (err) {
-      this._pollFailCount += 1;
-      this._healthPolls.fail += 1;
       this._busySince = null;
-      this._logPollFailure(err);
-      // What the tile shows if this failure is still the latest one when the
-      // time without a successful poll runs out (see _updateAvailability).
-      // The message can quote a frame (redactFrame) and goes on the tile, so
-      // it is cut as well.
-      this._lastFailText = safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX);
+      // A run that was taken for the machine being switched off ends here when
+      // this failure shows that the machine is on (see _lostWhileSwitchingOff):
+      // the failure then goes the ordinary way, below.
+      const lostInSwitchOff = this._lostWhileSwitchingOff(err);
+      const switchOffEnds = this._switchedOff && !lostInSwitchOff;
+      if (switchOffEnds) this._endSwitchedOff();
+      if (lostInSwitchOff) {
+        this._logSwitchedOff(err);
+      } else {
+        this._pollFailCount += 1;
+        this._healthPolls.fail += 1;
+        this._logPollFailure(err);
+        // What the tile shows if this failure is still the latest one when the
+        // time without a successful poll runs out (see _updateAvailability).
+        // The message can quote a frame (redactFrame) and goes on the tile, so
+        // it is cut as well.
+        this._lastFailText = safeText(friendlyPollError(err), UNAVAILABLE_TEXT_MAX);
+        // The tile of the run that just ended says the machine is switched off,
+        // and _updateAvailability leaves a tile that is unavailable alone, so
+        // the text is set here, once, with the text of this failure.
+        if (switchOffEnds && this._available === false) this._setTile(false, this._lastFailText);
+      }
       // Only the client this poll used, and only when it is still the current
       // one: nothing is left to do when the client's onClose threw it away
       // already, and a client made since must stay. A failed connect has no
@@ -1283,6 +1342,12 @@ class JuraMachineDevice extends Device {
    * status and not the text. A reset of the client empties `_appliedRawHex` and
    * the last text (see _resetClient), so a connection that is made again
    * applies the status once more, and the log says so once.
+   *
+   * The machine switching off is no fault: switch_off_delay_active and
+   * please_wait (NOT_A_FAULT_ALERTS) count for neither `alarm_generic` nor the
+   * warning, whatever their severity in the profile. They stay in the `Status:`
+   * line. A real fault at the same time still sets both, with only the real
+   * faults in the text of the warning.
    * @param {{rawHex: string, activeAlerts: string[], errors: string[]}} status
    * @param {{fromPoll?: boolean}} [opts]
    */
@@ -1316,7 +1381,8 @@ class JuraMachineDevice extends Device {
     // of power state this protocol exposes.
     setIfChanged('onoff', !status.activeAlerts.includes('goodbye'));
 
-    const hasError = status.errors.length > 0;
+    const errors = status.errors.filter((name) => !NOT_A_FAULT_ALERTS.has(name));
+    const hasError = errors.length > 0;
     setIfChanged('alarm_generic', hasError);
 
     // fill_water, no_beans, insert_tray, empty_tray and empty_grounds
@@ -1340,7 +1406,7 @@ class JuraMachineDevice extends Device {
     // after a call that failed: the very first status always makes a call
     // (undefined differs from both), which also clears a warning that was still
     // showing from before an app restart.
-    const warning = hasError ? status.errors.join(', ') : null;
+    const warning = hasError ? errors.join(', ') : null;
     if (warning !== this._appliedWarning) {
       this._appliedWarning = warning;
       const failed = (err) => {
@@ -1393,13 +1459,21 @@ class JuraMachineDevice extends Device {
    * late does not push the later ones back (over a long outage that would lose
    * a summary every few), and when whole periods were missed it is the first
    * one still ahead, not a line for each missed one. The time is since the first
-   * failed poll of the run, as in the line that ends it (see _endFailRun).
+   * failed poll of the run, as in the line that ends it (see _endFailRun). When
+   * the run is the machine being switched off (see _logSwitchedOff) the line
+   * says so, in the log and not as an error.
    * @param {number} now
    */
   _logQuietSummary(now) {
     if (this._quietNextSummaryAt === null || now < this._quietNextSummaryAt) return;
     const everyMs = this._quietSummaryMs();
     this._quietNextSummaryAt += (Math.floor((now - this._quietNextSummaryAt) / everyMs) + 1) * everyMs;
+    if (this._switchedOff) {
+      this.log(
+        `Machine still switched off for ${formatDuration(now - this._failRunSince)}: ${this._pollFailCount + this._offFailedPolls} polls failed, last: ${this._lastFailClass}.`
+      );
+      return;
+    }
     this.error(
       `Machine still unreachable for ${formatDuration(now - this._failRunSince)}: ${this._pollFailCount} polls failed, last: ${this._lastFailClass}.`
     );
@@ -1413,14 +1487,21 @@ class JuraMachineDevice extends Device {
    * before `_pollFailCount` starts over); a run that did not gets none. Never
    * throws: it only looks at what _logPollFailure kept. The run is cleared
    * before the line is written, so that the log does not stay quiet for good
-   * should writing it ever throw.
+   * should writing it ever throw. The end of a run that was the machine being
+   * switched off (see _logSwitchedOff) also ends its announcement, and the polls
+   * that failed in it (`_offFailedPolls`) count in the line. A poll that works
+   * in any other case leaves the announcement alone: the machine goes on
+   * answering after it announced that it is switching off.
    */
   _endFailRun() {
     const wasQuiet = this._quietNextSummaryAt !== null;
     const lastedMs = wasQuiet ? this._monotonicNow() - this._failRunSince : 0;
-    const failedPolls = this._pollFailCount;
+    const failedPolls = this._pollFailCount + this._offFailedPolls;
     this._quietNextSummaryAt = null;
     this._failRunSince = null;
+    if (this._switchedOff) this._switchOffAnnouncedAt = null;
+    this._switchedOff = false;
+    this._offFailedPolls = 0;
     if (wasQuiet) this.log(`Machine reachable again after ${formatDuration(lastedMs)} and ${failedPolls} failed polls.`);
   }
 
@@ -1434,6 +1515,134 @@ class JuraMachineDevice extends Device {
   _quietSummaryMs() {
     const ms = this._timing.QUIET_SUMMARY_MS;
     return Number.isFinite(ms) && ms > 0 ? ms : TIMING.QUIET_SUMMARY_MS;
+  }
+
+  /**
+   * TIMING.SWITCH_OFF_WINDOW_MS of this device, with the same fallback as
+   * _quietSummaryMs.
+   * @returns {number}
+   */
+  _switchOffWindowMs() {
+    const ms = this._timing.SWITCH_OFF_WINDOW_MS;
+    return Number.isFinite(ms) && ms > 0 ? ms : TIMING.SWITCH_OFF_WINDOW_MS;
+  }
+
+  /**
+   * Whether the machine announced that it is switching off less than
+   * TIMING.SWITCH_OFF_WINDOW_MS before `now` (see _noteStatusForSwitchOff).
+   * @param {number} now
+   * @returns {boolean}
+   */
+  _switchOffWindowOpen(now) {
+    return this._switchOffAnnouncedAt !== null && now - this._switchOffAnnouncedAt < this._switchOffWindowMs();
+  }
+
+  /**
+   * Look at a status (a parsed @TF:) for the announcement that the machine is
+   * switching off: switch_off_delay_active. When the machine is switched off
+   * it sends that, and please_wait just before, and stops answering about 20 s
+   * later (the dongle goes with it): without this that is a failure, with
+   * "Poll failed" lines and a tile that goes unavailable after a minute as if
+   * something were wrong. Two callers: the client's `onPush` listener (see
+   * _buildClient), with the frame that was pushed, and the poll, with the status
+   * it read. The listener looks at the frame itself and not only at the newest
+   * status: frames that come in one socket packet are announced one after the
+   * other, and the short announcement must not go missing behind a newer frame.
+   *
+   * The first one starts a window of TIMING.SWITCH_OFF_WINDOW_MS and gets one
+   * line in the log; while the window runs, another says nothing. What a poll
+   * that fails in the window means is in _logSwitchedOff.
+   * @param {{activeAlerts: string[]}} status
+   */
+  _noteStatusForSwitchOff(status) {
+    if (!status.activeAlerts.includes(SWITCH_OFF_ALERT)) return;
+    const now = this._monotonicNow();
+    if (this._switchOffWindowOpen(now)) return;
+    this._switchOffAnnouncedAt = now;
+    this.log(`Machine announces it is switching off (${SWITCH_OFF_ALERT}).`);
+  }
+
+  /**
+   * Whether the poll that just failed is the machine being switched off and no
+   * failure. Inside the window, less than TIMING.SWITCH_OFF_WINDOW_MS after the
+   * announcement (see _noteStatusForSwitchOff), any failed poll counts: the
+   * timeout of @HU?, a connect that fails, a FIN or a reset. After the window
+   * the run of failed polls it led to (`_switchedOff`, see _logSwitchedOff)
+   * goes on, until a poll works again, but only for a failure that had no TCP
+   * session (see failedWithoutSession): a machine that is switched off has
+   * none. A failure with a session, a handshake that is rejected or a
+   * connection that the machine ends (the J.O.E. app holds it), shows that the
+   * machine is on: it is no longer switched off, and the failure is one like
+   * any other (see _endSwitchedOff).
+   * @param {Error} err the error of the poll that failed
+   * @returns {boolean}
+   */
+  _lostWhileSwitchingOff(err) {
+    if (this._switchOffWindowOpen(this._monotonicNow())) return true;
+    return this._switchedOff && failedWithoutSession(err);
+  }
+
+  /**
+   * The run of failed polls that was taken for the machine being switched off
+   * ends, because a poll failed after the window with a TCP session behind it
+   * (see _lostWhileSwitchingOff): the machine is on and does not work. Not as in
+   * _endFailRun, there is no line that the machine is reachable again, as no
+   * poll worked. The run starts over with this failure as its first, so that it
+   * gets the lines of an ordinary failure ("Poll failed (1/3)", the line that
+   * says the log goes quiet, the summaries) and not those of a machine that is
+   * switched off. One line in the log says why. The tile is left to the caller
+   * (see _poll).
+   */
+  _endSwitchedOff() {
+    this._switchedOff = false;
+    this._switchOffAnnouncedAt = null;
+    this._offFailedPolls = 0;
+    this._quietNextSummaryAt = null;
+    this._failRunSince = null;
+    this._pollFailCount = 0;
+    this.log('Machine answers again but the connection failed: no longer treated as switched off.');
+  }
+
+  /**
+   * A poll failed while the machine is switching off or switched off (see
+   * _lostWhileSwitchingOff: in the window any failure, after it only one
+   * without a TCP session). That is no failure: it is not counted in
+   * `_pollFailCount` (the "n" of the "Poll failed (n/3)" lines) and not in the
+   * health figures, and there is no such line. It is counted in
+   * `_offFailedPolls`, for the summary and the line that ends the run (see
+   * _logQuietSummary, _endFailRun), apart from `_pollFailCount` so that this
+   * count can be told from a real failure. The log goes quiet at once, without
+   * the three lines of a failure: the first failed poll gets one line, with
+   * how long ago the machine announced it, after that there is only the summary
+   * every TIMING.QUIET_SUMMARY_MS. The backoff of the connects is as it is (see
+   * _doConnect). The tile goes unavailable at once, with its own text: an
+   * announcement followed by a machine that does not answer leaves no doubt, so
+   * it need not wait for TIMING.UNAVAILABLE_AFTER_MS. A call that was refused,
+   * or that was not made because another was still on its way, is made again at
+   * the next poll that fails (see _setTile). The tile becomes available again,
+   * and the run ends, at the first poll that works (see _pollSucceeded), or
+   * ends without that when a failure with a TCP session shows that the machine
+   * is on (see _endSwitchedOff).
+   * @param {Error} err
+   */
+  _logSwitchedOff(err) {
+    const now = this._monotonicNow();
+    this._offFailedPolls += 1;
+    if (this._failRunSince === null) this._failRunSince = now;
+    this._lastFailClass = pollFailClass(err);
+    this._lastFailText = SWITCHED_OFF_TEXT;
+    if (this._available !== false) this._setTile(false, SWITCHED_OFF_TEXT);
+    if (this._switchedOff) {
+      this._logQuietSummary(now);
+      return;
+    }
+    this._switchedOff = true;
+    const everyMs = this._quietSummaryMs();
+    this._quietNextSummaryAt = now + everyMs;
+    this.log(
+      `Machine switched off: it announced this ${formatDuration(now - this._switchOffAnnouncedAt)} ago and stopped answering. ` +
+        `Connection attempts go on quietly; a summary follows every ${formatDuration(everyMs)}.`
+    );
   }
 
   /**
