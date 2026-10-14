@@ -2000,7 +2000,9 @@ class JuraMachineDevice extends Device {
    * and also whether the connection is still there (opts.reportNotSent). A
    * brew that is too late, or whose connection is gone, sends nothing and the
    * user is told so (see _brewNotSentText); the device does not send it again
-   * by itself, the user taps again.
+   * by itself, the user taps again. A brew asked for while the machine is busy
+   * with a drink or a rinse (opts.refuseInBrewPhase, see JuraClient.inBrewPhase)
+   * is not sent either, and the user is told the machine is busy.
    */
   async brew(productName, overrides = {}) {
     // The deadline for sending, worked out here and nowhere else: the first
@@ -2108,6 +2110,7 @@ class JuraMachineDevice extends Device {
         timeoutMs: BREW_TIMEOUT_MS,
         reportNotSent: true,
         sendBy: deadlineAt,
+        refuseInBrewPhase: true,
       });
     } catch (err) {
       // JuraClient.brew() throws a coded BrewError for every failure while
@@ -2142,6 +2145,12 @@ class JuraMachineDevice extends Device {
         // connection the next _connectIfNeeded throws the client away itself,
         // and with a live one (the deadline) it is fine as it is.
         throw new Error(this._brewNotSentText(err.code, othersRunning, deadlineMs));
+      }
+      if (err.code === 'BREW_BUSY') {
+        // Nothing was sent: the machine is busy with a brew or a rinse (see
+        // JuraClient.inBrewPhase). The connection is fine and nothing is in
+        // doubt, so no _resetClient and no _lastUncertainBrewAt.
+        throw new Error('The machine is busy (a drink or a rinse is running), so this brew command was not sent. Try again when it is done.');
       }
       throw err;
     }
