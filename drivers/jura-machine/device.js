@@ -142,6 +142,16 @@ const SWITCHED_OFF_TEXT = 'The machine is switched off.';
 //                        the machine goes on answering for about 20 s. An
 //                        announcement that is not followed by a loss within
 //                        the window lapses without a trace.
+//  FRAME_LINES_PER_MIN   The most frame lines ("[frame] hh:mm:ss.mmm TX ...") the
+//                        log gets in a fixed minute, for the device and not per
+//                        client: a reconnect does not start with a new budget.
+//                        What is over is counted and not written; the count
+//                        comes in one line, in front of the next frame line that
+//                        is written (see _logFrame). The peak measured is 35 a
+//                        minute. While the log is quiet (see _logPollFailure)
+//                        none is written at the time: the newest
+//                        QUIET_FRAMES_KEPT are kept and written when the quiet
+//                        ends, outside this budget (see _flushQuietFrames).
 const TIMING = Object.freeze({
   RECONNECT_GAP_MS: 20000,
   RECONNECT_MAX_MS: 60000,
@@ -150,6 +160,7 @@ const TIMING = Object.freeze({
   BREW_DEADLINE_MS: 30000,
   QUIET_SUMMARY_MS: 900000,
   SWITCH_OFF_WINDOW_MS: 120000,
+  FRAME_LINES_PER_MIN: 100,
 });
 
 // The error that ends a connect which a reset or a delete has cancelled (see
@@ -168,6 +179,15 @@ function connectCancelledError() {
 // no timer for it: the end of every poll checks whether this long has passed
 // since the previous line (see _logHealth).
 const HEALTH_EVERY_MS = 300000;
+
+// The length of the fixed window in which TIMING.FRAME_LINES_PER_MIN frame lines
+// are let through (see _logFrame).
+const FRAME_WINDOW_MS = 60000;
+
+// How many frame lines are kept while the log is quiet, to be written when the
+// quiet ends (see _logFrame, _flushQuietFrames). The newest ones: the frames of
+// the connection that ends the quiet are the last to come.
+const QUIET_FRAMES_KEPT = 30;
 
 // Text that came from the machine (a brew reply, the reason a connection
 // ended) goes into a user message or a log line only after redactFrame and
@@ -414,6 +434,14 @@ class JuraMachineDevice extends Device {
     this._failRunSince = null;
     this._quietNextSummaryAt = null;
     this._lastFailClass = '';
+    // For the budget of the frame lines (see _logFrame): when the minute being
+    // counted began (null: none yet), how many frame lines it has let through,
+    // and how many were left out since the line that said so last. And the
+    // newest frame lines of the quiet log, kept to be written when it ends.
+    this._frameWindowAt = null;
+    this._frameWindowLines = 0;
+    this._frameLeftOut = 0;
+    this._quietFrames = [];
     // For the switch-off (see _noteStatusForSwitchOff, _poll): when the machine
     // last announced that it is switching off (null: it did not, or the run of
     // failed polls it led to is over), whether the run of failed polls in
@@ -663,11 +691,15 @@ class JuraMachineDevice extends Device {
       // address did not answer says nothing about the new one, so the run ends
       // here, without a line for it, and a new address that does not answer
       // gets its own "Poll failed (n/3)" lines and its own transition line. So
-      // does what the old address said about switching off (see _poll).
+      // does what the old address said about switching off (see _poll). The
+      // frame lines kept while the log was quiet are the old address's too: they
+      // are dropped and not written, and what they left out stays counted (see
+      // _logFrame).
       this._connectFailures = 0;
       this._pollFailCount = 0;
       this._failRunSince = null;
       this._quietNextSummaryAt = null;
+      this._quietFrames = [];
       this._switchOffAnnouncedAt = null;
       this._switchedOff = false;
       this._offFailedPolls = 0;
@@ -740,6 +772,11 @@ class JuraMachineDevice extends Device {
   }
 
   _buildClient() {
+    // The frame lines kept while the log is quiet (see _logFrame) are those of
+    // the clients before this one: they are dropped, not written, so that the
+    // attempts of a night do not come out when the quiet ends. What they left
+    // out stays counted.
+    this._quietFrames = [];
     const store = this.getStore();
     const settings = this.getSettings();
     const address = settings.address || store.address;
@@ -755,7 +792,8 @@ class JuraMachineDevice extends Device {
       profile,
       // Synchronous on purpose: FrameLog hands every line over right away and
       // does not wait for it. The lines are redacted and cut before they get here.
-      logger: (line) => this.log('[frame]', line),
+      // The budget is the device's and not this client's (see _logFrame).
+      logger: (line) => this._logFrame(line),
       // The connection ended (the machine closed or reset it, or a socket
       // error): throw the client away now, with its figures banked, instead
       // of finding out at the next poll. A client that is no longer the
@@ -799,6 +837,92 @@ class JuraMachineDevice extends Device {
       },
     });
     return client;
+  }
+
+  /**
+   * One frame line of a client's FrameLog (see _buildClient) on its way to the
+   * log, within a budget: at most TIMING.FRAME_LINES_PER_MIN in a fixed minute,
+   * counted on the monotonic clock and for the device, over all its clients, so
+   * a reconnect does not start with a new one. While the log is quiet (see
+   * _logPollFailure) none is written at the time: a machine that takes the
+   * connection but gives no session (another app holds it) would else leave a
+   * TX @HP: line at every connect attempt, all night. What is not written is
+   * counted. The newest QUIET_FRAMES_KEPT of the quiet log are kept as well
+   * (`_quietFrames`, outside the budget: they do not count in it, and it does not
+   * keep them out), because the quiet ends with a connection that works, and
+   * its frames are what a bug report needs: the handshake that gets the machine
+   * back, and the TX @TP: line with the recipe of a brew that came before the
+   * first poll. The ring starts over with every new client (see _buildClient), so
+   * the attempts of a night are not in it. It is written by _flushQuietFrames
+   * when the quiet ends (see _endFailRun, _endSwitchedOff) and dropped when the
+   * address or the profile changes (see onSettings). What is over the budget
+   * (not in the quiet log) is counted and not kept. The count is told by one
+   * line, "(+N lines left out)", in front of the next frame line that is written
+   * (or, at the end of the quiet, in front of the kept lines), and never alone:
+   * it has no timer and no minute of its own, so a quiet log stays quiet. That
+   * line does not count in the budget. The count starts over before the line is
+   * written, as in _endFailRun. Returns what `log` returned for the frame line,
+   * for FrameLog to deal with (it swallows a promise that rejects, see its class
+   * comment); the same is done here for the line that tells the count.
+   * @param {string} line
+   */
+  _logFrame(line) {
+    const now = this._monotonicNow();
+    if (this._frameWindowAt === null || now - this._frameWindowAt >= FRAME_WINDOW_MS) {
+      this._frameWindowAt = now;
+      this._frameWindowLines = 0;
+    }
+    if (this._quietNextSummaryAt !== null) {
+      this._frameLeftOut += 1;
+      this._quietFrames.push(line);
+      if (this._quietFrames.length > QUIET_FRAMES_KEPT) this._quietFrames.shift();
+      return;
+    }
+    if (this._frameWindowLines >= this._frameLinesPerMin()) {
+      this._frameLeftOut += 1;
+      return;
+    }
+    this._frameWindowLines += 1;
+    if (this._frameLeftOut > 0) {
+      const leftOut = this._frameLeftOut;
+      this._frameLeftOut = 0;
+      const told = this.log('[frame]', `(+${leftOut} lines left out)`);
+      if (told && typeof told.then === 'function') told.then(undefined, () => {});
+    }
+    return this.log('[frame]', line);
+  }
+
+  /**
+   * The log is not quiet any more (see _endFailRun, _endSwitchedOff): the frame
+   * lines kept while it was (see _logFrame) are written now, in the order they
+   * came, behind one line that tells how many were left out before them,
+   * "(+N lines left out)". N is all that was left out since the line that said
+   * so last, minus the lines that are kept and written here, so what is written
+   * and what is counted add up to what the FrameLogs offered. The lines are
+   * outside the budget: they do not count in the minute that is running, and it
+   * does not keep them out. Nothing kept, nothing written: the count stays, for
+   * the next frame line to tell, as the count is never alone. The ring and the
+   * count start over before anything is written, as in _endFailRun. Never
+   * throws, for the same reason: a log that throws must not keep the quiet from
+   * ending. A promise that `log` returns and that rejects is swallowed, as in
+   * _logFrame.
+   */
+  _flushQuietFrames() {
+    const kept = this._quietFrames;
+    this._quietFrames = [];
+    if (kept.length === 0) return;
+    const leftOut = this._frameLeftOut - kept.length;
+    this._frameLeftOut = 0;
+    try {
+      const write = (text) => {
+        const told = this.log('[frame]', text);
+        if (told && typeof told.then === 'function') told.then(undefined, () => {});
+      };
+      if (leftOut > 0) write(`(+${leftOut} lines left out)`);
+      for (const line of kept) write(line);
+    } catch {
+      // What is not written stays unwritten: the quiet is over all the same.
+    }
   }
 
   /**
@@ -1491,7 +1615,10 @@ class JuraMachineDevice extends Device {
    * switched off (see _logSwitchedOff) also ends its announcement, and the polls
    * that failed in it (`_offFailedPolls`) count in the line. A poll that works
    * in any other case leaves the announcement alone: the machine goes on
-   * answering after it announced that it is switching off.
+   * answering after it announced that it is switching off. The frame lines kept
+   * while the log was quiet (see _logFrame) are written before that line, by
+   * _flushQuietFrames: they are the frames of the connection that works, so the
+   * log reads frames, then the line that the machine is reachable again.
    */
   _endFailRun() {
     const wasQuiet = this._quietNextSummaryAt !== null;
@@ -1502,7 +1629,10 @@ class JuraMachineDevice extends Device {
     if (this._switchedOff) this._switchOffAnnouncedAt = null;
     this._switchedOff = false;
     this._offFailedPolls = 0;
-    if (wasQuiet) this.log(`Machine reachable again after ${formatDuration(lastedMs)} and ${failedPolls} failed polls.`);
+    if (wasQuiet) {
+      this._flushQuietFrames();
+      this.log(`Machine reachable again after ${formatDuration(lastedMs)} and ${failedPolls} failed polls.`);
+    }
   }
 
   /**
@@ -1525,6 +1655,16 @@ class JuraMachineDevice extends Device {
   _switchOffWindowMs() {
     const ms = this._timing.SWITCH_OFF_WINDOW_MS;
     return Number.isFinite(ms) && ms > 0 ? ms : TIMING.SWITCH_OFF_WINDOW_MS;
+  }
+
+  /**
+   * TIMING.FRAME_LINES_PER_MIN of this device, with the same fallback as
+   * _quietSummaryMs.
+   * @returns {number}
+   */
+  _frameLinesPerMin() {
+    const n = this._timing.FRAME_LINES_PER_MIN;
+    return Number.isFinite(n) && n > 0 ? n : TIMING.FRAME_LINES_PER_MIN;
   }
 
   /**
@@ -1590,8 +1730,10 @@ class JuraMachineDevice extends Device {
    * poll worked. The run starts over with this failure as its first, so that it
    * gets the lines of an ordinary failure ("Poll failed (1/3)", the line that
    * says the log goes quiet, the summaries) and not those of a machine that is
-   * switched off. One line in the log says why. The tile is left to the caller
-   * (see _poll).
+   * switched off. The frame lines kept while the log was quiet (see _logFrame)
+   * are written before the line that says why: they are those of this attempt,
+   * the one that showed the machine is on (see _flushQuietFrames). The tile is
+   * left to the caller (see _poll).
    */
   _endSwitchedOff() {
     this._switchedOff = false;
@@ -1600,6 +1742,7 @@ class JuraMachineDevice extends Device {
     this._quietNextSummaryAt = null;
     this._failRunSince = null;
     this._pollFailCount = 0;
+    this._flushQuietFrames();
     this.log('Machine answers again but the connection failed: no longer treated as switched off.');
   }
 
