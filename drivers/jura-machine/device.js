@@ -393,6 +393,9 @@ class JuraMachineDevice extends Device {
     this._clientGeneration = 0;
     this._pollTimer = null;
     this._pollCount = 0;
+    // Whether the maintenance reads are owed (see _poll): set on every
+    // MAINTENANCE_POLL_EVERY-th poll, cleared when they are made.
+    this._maintenanceDue = false;
     this._pollFailCount = 0;
     this._polling = false;
     // What _applyStatus last applied: the raw status and the text of the
@@ -1337,7 +1340,15 @@ class JuraMachineDevice extends Device {
       this._applyStatus(status, { fromPoll: true });
 
       this._pollCount += 1;
-      if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) {
+      // The maintenance reads are due on poll 1, 31, 61, ... but each can hold
+      // the connection for up to 6 s, so not while the machine brews (a brew
+      // phase of the client, or a brew() of this device that is running): a
+      // brew queued behind one would wait for it. The reading stays due
+      // and is made by the first poll after the brew; the count, and so the
+      // beat of 1, 31, 61, ..., does not move.
+      if (this._pollCount % MAINTENANCE_POLL_EVERY === 1) this._maintenanceDue = true;
+      if (this._maintenanceDue && !client.inBrewPhase() && this._brewsRunning === 0) {
+        this._maintenanceDue = false;
         // What this reading found for the settings page's Statistics group;
         // written together, in one setSettings, after both reads below.
         const statistics = {};
