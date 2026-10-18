@@ -101,5 +101,9 @@
   "0.12.2": {
     "en": "Brewing several drinks in a row from a flow works again: the app no longer mistakes the machine's quiet period while brewing for a lost connection.",
     "nl": "Meerdere dranken achter elkaar zetten via een flow werkt weer: de app ziet de stille periode tijdens het zetten niet meer aan voor een verbroken verbinding."
+  },
+  "0.13.0": {
+    "en": "Much more reliable over WiFi: one steady connection, calm reconnects after the machine was off or busy, alarms within seconds straight from the machine, and a tile that says when the machine is switched off. Brewing is safer: a brew command is never sent late, twice, or while the machine is still busy, and the app says plainly when it was not sent. Maintenance percentages now also appear under Statistics.",
+    "nl": "Veel betrouwbaarder via WiFi: één stabiele verbinding, rustig opnieuw verbinden als de machine uit of bezig was, alarmen binnen een paar seconden rechtstreeks van de machine, en een tegel die zegt wanneer de machine is uitgezet. Zetten is veiliger: een zetopdracht gaat nooit te laat, dubbel of terwijl de machine nog bezig is de deur uit, en de app zegt eerlijk wanneer hij niet verstuurd is. De onderhoudspercentages staan nu ook onder Statistieken."
   }
 }
