@@ -405,6 +405,9 @@ class JuraMachineDevice extends Device {
     // last set failed and are set again whatever their value, see there.
     this._appliedRawHex = null;
     this._appliedStatusLine = null;
+    // The text of the `Maintenance %:` line last written (null: none yet, or
+    // the connection was reset since), see _poll.
+    this._loggedMaintenanceLine = null;
     this._appliedWarning = undefined;
     this._retryCaps = new Set();
     // When the last session, or attempt at one, ended, whoever ended it (see
@@ -1233,9 +1236,11 @@ class JuraMachineDevice extends Device {
     if (!current) return;
     this._clientGeneration += 1;
     this._client = null;
-    // The next connection applies the status again, once (see _applyStatus).
+    // The next connection applies the status again, once (see _applyStatus),
+    // and logs the maintenance reading again, once (see _poll).
     this._appliedRawHex = null;
     this._appliedStatusLine = null;
+    this._loggedMaintenanceLine = null;
     this._lastCloseReason = safeText((current.lastCloseReason && current.lastCloseReason.message) || reason);
     this._bankStats(current);
     this._noteSessionEnd();
@@ -1354,7 +1359,15 @@ class JuraMachineDevice extends Device {
         const statistics = {};
         try {
           const maint = await client.readMaintenancePercent(6000);
-          this.log('Maintenance %:', `cleaning=${maint.cleaning} filter=${maint.filterChange} descale=${maint.descale}`);
+          // Logged when its text differs from the one logged last, like the
+          // `Status:` line: every reading is made, and written to the
+          // capabilities and the labels below, but one that found the same
+          // percentages as the last is not worth a log line every 5 minutes.
+          const maintenanceLine = `cleaning=${maint.cleaning} filter=${maint.filterChange} descale=${maint.descale}`;
+          if (maintenanceLine !== this._loggedMaintenanceLine) {
+            this._loggedMaintenanceLine = maintenanceLine;
+            this.log('Maintenance %:', maintenanceLine);
+          }
           // The same three readings as labels. Unlike the capabilities
           // below, a 0xFF (type not tracked by this machine) shows the
           // placeholder here instead of being left alone, so the label
