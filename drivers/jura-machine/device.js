@@ -511,12 +511,12 @@ class JuraMachineDevice extends Device {
       if (!value) {
         throw new Error(
           this.homey.__('errors.cannot_power_off') ||
-            'This machine cannot be switched off remotely — press the power button on the machine itself.'
+            'This machine cannot be switched off remotely: press the power button on the machine itself.'
         );
       } else {
         throw new Error(
           this.homey.__('errors.cannot_power_on') ||
-            'This machine cannot be switched on remotely — press the power button on the machine itself.'
+            'This machine cannot be switched on remotely: press the power button on the machine itself.'
         );
       }
     });
