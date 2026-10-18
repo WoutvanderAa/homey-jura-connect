@@ -64,7 +64,23 @@ Flow cards: a "Brew a product" action covering any product your
 specific machine has, with an optional strength argument; a trigger
 and a condition for each alarm above; and a "crossed above X%" trigger
 plus an "is above X%" condition for each maintenance type. "Total
-brews" is available in the device settings, under Statistics.
+brews" and the maintenance percentages are available in the device
+settings, under Statistics.
+
+### How it behaves
+
+- Alarms follow the status the machine sends by itself, so they show
+  within seconds.
+- Short events, such as taking out the drip tray to empty it, now
+  always trigger your flows. Notification flows may fire more often
+  than before.
+- When you switch the machine off, the tile becomes unavailable at
+  once with "The machine is switched off.", and "Needs attention"
+  does not come on.
+- A brew asked for while the machine is still busy with a drink or a
+  rinse is not sent. The tile or flow card says so: "The machine is
+  busy (a drink or a rinse is running), so this brew command was not
+  sent. Try again when it is done."
 
 ## Settings
 
@@ -89,9 +105,10 @@ value your machine doesn't have is rejected when you save.
 - Remote on/off isn't possible; the dongle ignores that command.
 - The J.O.E. app can't connect while Homey is connected. The dongle
   only accepts one connection at a time.
-- Alarms can lag the machine's actual state by a few minutes. The
-  cause is in how this app processes status messages; a fix is
-  planned for 0.13.0.
+- If the app connects while the machine is already busy (for example
+  halfway through the rinse after switching on), it can't tell that a
+  drink or rinse is running, and a brew sent right then may be
+  reported as accepted while the machine ignores it.
 - There's no way to remotely abort a brew already in progress.
 
 ## Reporting a problem
