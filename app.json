@@ -31,6 +31,7 @@
     "url": "https://github.com/WoutvanderAa/homey-jura-connect/issues"
   },
   "source": "https://github.com/WoutvanderAa/homey-jura-connect",
+  "homeyCommunityTopicId": 158080,
   "capabilities": {
     "jura_maintenance_cleaning": {
       "type": "number",
