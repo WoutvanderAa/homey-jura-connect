@@ -111,6 +111,16 @@ value your machine doesn't have is rejected when you save.
   reported as accepted while the machine ignores it.
 - There's no way to remotely abort a brew already in progress.
 
+## LAN security
+
+The Jura WiFi protocol lets anyone on the same network replay the
+handshake and read the PIN when it is sent. A fake machine on the
+network could also ask Jura Connect for the PIN. This is how Jura's
+protocol works, and the app cannot change it.
+
+Keep the machine on a network you trust, and never forward port 51515
+to the internet.
+
 ## Reporting a problem
 
 Use the GitHub issue templates: bug report, feature request, or model
