@@ -27,12 +27,12 @@
 
   .picker { margin: 20px 30px; text-align: left; }
   .picker p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
-  .picker select, .picker input[type="text"] {
+  .picker select, .picker input[type="text"], .picker input[type="password"] {
     width: 100%; padding: 10px 12px; font-size: 14px; margin-top: 4px;
     border: 1px solid var(--border); border-radius: 100px; font-family: inherit; color: var(--text);
     background: #fff;
   }
-  .picker input[type="text"]:focus { outline: none; border-color: var(--brand-light); }
+  .picker input[type="text"]:focus, .picker input[type="password"]:focus { outline: none; border-color: var(--brand-light); }
 
   .btn {
     font-family: inherit; font-size: 14px; font-weight: 600;
@@ -59,7 +59,7 @@
 <div id="pinPrompt" class="picker" style="display:none">
   <p>This machine has a security PIN set (configured via the J.O.E.
      app). Enter it to pair.</p>
-  <input id="pin-input" type="text" inputmode="numeric" placeholder="PIN">
+  <input id="pin-input" type="password" autocomplete="off" inputmode="numeric" placeholder="PIN">
   <div style="text-align:center">
     <button id="pin-submit" class="btn btn-primary">Connect</button>
   </div>
