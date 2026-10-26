@@ -1,0 +1,115 @@
+name: Model request
+description: Your Jura model is not in the list yet, or Homey did not find it. Tell us about the machine so it can be added.
+title: "[Model request] "
+labels:
+  - model-request
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping to add your machine! Fill in what you can, the rest is optional.
+
+        The hwId and firmware are shown on the Homey pairing screen, in the line under each machine
+        the app found (address, firmware, article number and hwId). This needs app version 0.13.1 or later.
+
+        Please do not post your PIN, your WiFi password or your IP address here.
+
+  - type: input
+    id: model
+    attributes:
+      label: Machine model
+      description: The name printed on the machine or on the box (e.g. "Jura E8", "Jura Z10")
+      placeholder: Jura ...
+    validations:
+      required: true
+
+  - type: input
+    id: article-number
+    attributes:
+      label: Article number
+      description: The 5 digits on the type plate of the machine, e.g. "15336"
+      placeholder: "15336"
+    validations:
+      required: true
+
+  - type: input
+    id: hwid
+    attributes:
+      label: hwId
+      description: Shown on the Homey pairing screen next to the article number, e.g. "EF538M". If Homey did not find the machine, write "not found".
+      placeholder: EF...
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware
+      description: Shown on the Homey pairing screen, in the same line as the article number. If Homey did not find the machine, write "not found".
+
+  - type: textarea
+    id: drinks
+    attributes:
+      label: Drinks on the machine's display
+      description: All the drinks the display offers, for example "Espresso, Coffee, Cappuccino, Latte macchiato, Hot water"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: milk
+    attributes:
+      label: Does the machine have a milk system?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hot-water
+    attributes:
+      label: Can the machine dispense hot water?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dongle
+    attributes:
+      label: Which dongle does the machine have?
+      options:
+        - Blue Smart Connect
+        - White WiFi Connect
+        - White WiFi Connect V2
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: joe-wifi
+    attributes:
+      label: Does the J.O.E. app connect over WiFi?
+      description: Switch Bluetooth off on your phone first, so the app has to use WiFi.
+      options:
+        - "Yes"
+        - "No"
+        - Did not try
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pin
+    attributes:
+      label: Is a PIN set in the J.O.E. app?
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: What happened when you tried to pair, or anything that looks different from other Jura machines.

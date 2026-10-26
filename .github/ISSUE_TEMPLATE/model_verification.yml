@@ -33,7 +33,7 @@ body:
     id: hwid
     attributes:
       label: hwId / EF code shown at pairing
-      description: Shown during pairing if auto-detection didn't recognize the article number, or in device settings after pairing (e.g. "EF538M V01.05")
+      description: Shown on the Homey pairing screen next to the article number (app version 0.13.1 and later), e.g. "EF538M"
       placeholder: EF...
 
   - type: dropdown
