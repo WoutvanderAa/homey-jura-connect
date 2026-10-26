@@ -500,6 +500,14 @@ class JuraMachineDevice extends Device {
     await this._syncHotwaterCapability();
     await this._syncStrengthOptionLabels();
 
+    // Which machine this is, for a user who has to tell us: the article number
+    // and hwId were stored at pairing, devices paired before that have none.
+    this.log(
+      `Machine: profile ${this._resolveProfile().code}, art. ${this.getStoreValue('articleNumber') || 'unknown'}, hwId ${
+        this.getStoreValue('hwId') || 'unknown'
+      }`
+    );
+
     this.registerCapabilityListener('onoff', async (value) => {
       // Fully read-only in both directions. @AN:02 (standby) is a
       // UART/Bluetooth-era command -- jura_connect's own command

@@ -120,6 +120,12 @@
             // device.js's _buildClient.
             pin: paired.pin || '',
             profileCode: paired.profileCode,
+            // What discovery read off the machine, kept so a user can tell
+            // us which model this is (device.js logs it on init). Left out
+            // for a machine entered by IP address: it was never discovered.
+            ...(paired.articleNumber ? { articleNumber: paired.articleNumber } : {}),
+            ...(paired.hwId ? { hwId: paired.hwId } : {}),
+            ...(paired.fw ? { fw: paired.fw } : {}),
           },
           settings: {
             address: paired.address,
