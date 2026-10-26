@@ -136,10 +136,12 @@
           Homey.emit('select_machine', m)
             .then(() => Homey.showView('connect'))
             .catch((err) => {
+              if (typeof Homey.setNavigationCloseable === 'function') Homey.setNavigationCloseable(true);
               status.className = 'status error';
               status.textContent = 'Could not select machine: ' + (err && err.message ? err.message : err);
             });
         } catch (e) {
+          if (typeof Homey.setNavigationCloseable === 'function') Homey.setNavigationCloseable(true);
           status.className = 'status error';
           status.textContent = 'Error on click: ' + (e && e.message ? e.message : e);
         }
@@ -179,6 +181,7 @@
     Homey.emit('select_machine', { address })
       .then(() => Homey.showView('connect'))
       .catch((err) => {
+        if (typeof Homey.setNavigationCloseable === 'function') Homey.setNavigationCloseable(true);
         errEl.textContent = (err && err.message) ? err.message : String(err);
         errEl.style.display = 'block';
       });

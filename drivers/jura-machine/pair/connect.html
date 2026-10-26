@@ -27,6 +27,7 @@
 
   .picker { margin: 20px 30px; text-align: left; }
   .picker p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
+  .picker .error-box { margin: 0 0 12px; }
   .picker select, .picker input[type="text"], .picker input[type="password"] {
     width: 100%; padding: 10px 12px; font-size: 14px; margin-top: 4px;
     border: 1px solid var(--border); border-radius: 100px; font-family: inherit; color: var(--text);
@@ -59,6 +60,7 @@
 <div id="pinPrompt" class="picker" style="display:none">
   <p>This machine has a security PIN set (configured via the J.O.E.
      app). Enter it to pair.</p>
+  <div id="pin-error" class="error-box" style="display:none"></div>
   <input id="pin-input" type="password" autocomplete="off" inputmode="numeric" placeholder="PIN">
   <div style="text-align:center">
     <button id="pin-submit" class="btn btn-primary">Connect</button>
@@ -93,13 +95,27 @@
     document.getElementById('retry').style.display = 'inline-block';
   }
 
-  function showPinPrompt() {
+  // `rejected` is true when the machine turned down a PIN that was typed in
+  // this prompt: the masked wrong PIN must not stay in the field, and the
+  // user needs to see why the prompt is back. The first time the prompt
+  // appears (the machine turned down the empty default) it stays as it was.
+  function showPinPrompt(rejected) {
     hideAllPanels();
     document.getElementById('pinPrompt').style.display = 'block';
+    const pinError = document.getElementById('pin-error');
+    if (rejected) {
+      document.getElementById('pin-input').value = '';
+      pinError.textContent = 'That PIN was not accepted. Check it in the J.O.E. app and try again.';
+      pinError.style.display = 'block';
+    } else {
+      pinError.style.display = 'none';
+    }
     document.getElementById('pin-input').focus();
   }
 
-  function runHandshake(pin) {
+  // `fromPinPrompt` is true when `pin` was typed in the PIN prompt, false for
+  // the empty default that is tried first.
+  function runHandshake(pin, fromPinPrompt) {
     hideAllPanels();
     document.getElementById('spinner').style.display = 'block';
     document.getElementById('prompt').style.display = 'block';
@@ -145,7 +161,7 @@
         // rejection reason is a genuine error with nothing the user can
         // retry their way out of here.
         if (message.includes('WRONG_PIN')) {
-          showPinPrompt();
+          showPinPrompt(fromPinPrompt);
         } else {
           showError(message);
         }
@@ -218,10 +234,13 @@
     // sending it through and getting a confusing downstream failure.
     const pin = document.getElementById('pin-input').value.trim();
     if (pin.includes(',')) {
+      const pinError = document.getElementById('pin-error');
+      pinError.textContent = 'A PIN cannot contain a comma.';
+      pinError.style.display = 'block';
       document.getElementById('pin-input').focus();
       return;
     }
-    runHandshake(pin);
+    runHandshake(pin, true);
   });
   document.getElementById('pin-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('pin-submit').click();
