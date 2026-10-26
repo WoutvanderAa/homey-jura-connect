@@ -5,6 +5,7 @@ const models = require('../../lib/models');
 const profileLib = require('../../lib/profile');
 const { JuraClient, MachineStatus, AUTH_HASH_RE, PairingTimeout, isMachineClosedError, monotonicMs } = require('../../lib/juraClient');
 const { redactFrame, clipText } = require('../../lib/frameLog');
+const { assertLocalAddress } = require('../../lib/address');
 
 // How often to poll @HU? for a status frame while idle. Drives alarms,
 // onoff and available/unavailable -- kept short so those feel
@@ -660,6 +661,14 @@ class JuraMachineDevice extends Device {
   }
 
   async onSettings({ oldSettings, newSettings, changedKeys }) {
+    // A typed address must be one on the local network. Checked only when it
+    // changed, so a device whose stored address is not one still saves its other
+    // settings; an empty field stays what it was: no override, the address from
+    // pairing is used (see _buildClient).
+    if (changedKeys.includes('address') && newSettings.address) {
+      assertLocalAddress(newSettings.address);
+    }
+
     // Validate first, before any of the side effects below run --
     // Homey surfaces a thrown Error here to the user and keeps the old
     // settings, so a rejected strength level shouldn't leave a

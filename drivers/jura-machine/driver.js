@@ -3,6 +3,7 @@
 const { Driver } = require('homey');
 const discovery = require('../../lib/discovery');
 const models = require('../../lib/models');
+const { assertLocalAddress } = require('../../lib/address');
 const { JuraClient, isMachineClosedError } = require('../../lib/juraClient');
 
 class JuraMachineDriver extends Driver {
@@ -75,6 +76,9 @@ class JuraMachineDriver extends Driver {
     // straight to the handshake.
     session.setHandler('select_machine', async (selected) => {
       const found = discovered.find((m) => m.address === selected.address);
+      // Not one of the machines the scan found: the address was typed in
+      // (start.html's manual field), so it must be one on the local network.
+      if (!found) assertLocalAddress(selected.address);
       selectedMachine = found
         ? { ...found, detectedModel: models.modelForArticle(found.articleNumber) }
         : selected;
