@@ -105,5 +105,9 @@
   "0.13.0": {
     "en": "Much more reliable over WiFi: one steady connection, calm reconnects after the machine was off or busy, alarms within seconds straight from the machine, and a tile that says when the machine is switched off. Brewing is safer: a brew command is never sent late, twice, or while the machine is still busy, and the app says plainly when it was not sent. Maintenance percentages now also appear under Statistics.",
     "nl": "Veel betrouwbaarder via WiFi: één stabiele verbinding, rustig opnieuw verbinden als de machine uit of bezig was, alarmen binnen een paar seconden rechtstreeks van de machine, en een tegel die zegt wanneer de machine is uitgezet. Zetten is veiliger: een zetopdracht gaat nooit te laat, dubbel of terwijl de machine nog bezig is de deur uit, en de app zegt eerlijk wanneer hij niet verstuurd is. De onderhoudspercentages staan nu ook onder Statistieken."
+  },
+  "0.13.1": {
+    "en": "Easier to add new machines: the pairing screen and the app log now show the hardware code (hwId) of each machine found, and GitHub has a form for model requests. Safer pairing: the PIN is hidden while you type it, only a local network address is accepted, and odd characters from the network are filtered out.",
+    "nl": "Nieuwe machines zijn makkelijker toe te voegen: het koppelscherm en de app-log tonen nu de hardwarecode (hwId) van elke gevonden machine, en op GitHub staat een formulier om een model aan te vragen. Veiliger koppelen: de PIN is verborgen tijdens het typen, alleen een adres op je lokale netwerk wordt geaccepteerd, en vreemde tekens uit het netwerk worden weggefilterd."
   }
 }

@@ -123,8 +123,10 @@ to the internet.
 
 ## Reporting a problem
 
-Use the GitHub issue templates: bug report, feature request, or model
-verification. Including a Homey diagnostics report ID helps a lot.
+Use the GitHub issue templates: bug report, feature request, model
+request (your machine is not in the list yet), or model verification.
+Including a Homey diagnostics report ID helps a lot. The hwId that the
+model forms ask for is shown on the Homey pairing screen.
 
 ## Credits
 
