@@ -7,10 +7,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping to add your machine! Fill in what you can, the rest is optional.
+        Thanks for helping to add your machine! Fields with a red asterisk are required.
 
         The hwId and firmware are shown on the Homey pairing screen, in the line under each machine
-        the app found (address, firmware, article number and hwId). This needs app version 0.13.1 or later.
+        the app found (address, firmware, article number and hwId). Copy only the firmware, `art.` and `hwId`
+        parts of that line, not the address at the start. This needs app version 0.13.1 or later.
 
         Please do not post your PIN, your WiFi password or your IP address here.
 
