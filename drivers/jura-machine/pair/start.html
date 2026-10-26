@@ -99,7 +99,7 @@
     machines.forEach((m) => {
       const row = document.createElement('div');
       row.className = 'machine';
-      const modelLabel = m.detectedModel ? m.detectedModel.label : 'model not recognised — pick manually next';
+      const modelLabel = m.detectedModel ? m.detectedModel.label : 'Model not recognised: you pick it on the next screen';
 
       // Built with createElement/textContent, not innerHTML: m.name and
       // m.fw come straight off the UDP discovery reply (lib/discovery.js's
@@ -114,7 +114,7 @@
       nameEl.textContent = m.name || 'Jura machine';
       const metaEl = document.createElement('div');
       metaEl.className = 'meta';
-      metaEl.textContent = m.address + ' · ' + (m.fw || '') + (m.articleNumber ? ' · art. ' + m.articleNumber : '');
+      metaEl.textContent = m.address + ' · ' + (m.fw || '') + (m.articleNumber ? ' · art. ' + m.articleNumber : '') + (m.hwId ? ' · hwId ' + m.hwId : '');
       const modelEl = document.createElement('div');
       modelEl.className = 'meta';
       modelEl.textContent = modelLabel;
