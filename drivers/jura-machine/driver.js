@@ -28,6 +28,17 @@ class JuraMachineDriver extends Driver {
       this.log('Pair: broadcasting UDP discovery...');
       discovered = await discovery.discover({ timeoutMs: 4000, repeats: 3 });
       this.log(`Pair: found ${discovered.length} machine(s)`);
+      // One line per machine, so a user with a model that is not in
+      // lib/models.js yet can tell us its article number and hwId. Never the
+      // name (can be a person's name) and never the address.
+      for (const m of discovered) {
+        const found = models.modelForArticle(m.articleNumber);
+        this.log(
+          `Pair: machine art. ${m.articleNumber || 'unknown'}, hwId ${m.hwId || 'unknown'}, fw ${m.fw || 'unknown'}: ${
+            found ? found.label : 'not recognised'
+          }`
+        );
+      }
       return discovered.map((m) => {
         const model = models.modelForArticle(m.articleNumber);
         return {
