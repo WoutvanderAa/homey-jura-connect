@@ -43,8 +43,8 @@ class JuraConnectApp extends App {
     });
 
     // Only products whose recipe builds without any override are offered: a
-    // product that cannot be built (EF562's 2 Ristretti, the F17 products of
-    // EF1106/EF1208/EF1119/EF1123) would fail on every run.
+    // product that cannot be built (EF562's 2 Ristretti, whose default
+    // temperature is not one of its items) would fail on every run.
     const buildsWithoutOverrides = (product) => {
       try {
         profileLib.buildRecipeHex(product, {});
