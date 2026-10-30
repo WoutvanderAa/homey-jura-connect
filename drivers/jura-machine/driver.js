@@ -24,6 +24,11 @@ class JuraMachineDriver extends Driver {
   async onPair(session) {
     let discovered = [];
     let selectedMachine = null;
+    // The client of the pairing that is running: client.pair waits up to 60 s
+    // for the confirm on the machine, and the dongle allows one TCP session, so
+    // a pair dialog that is closed (see 'disconnect' below) or a second 'pair'
+    // must end it, or the next attempt is refused.
+    let activeClient = null;
 
     session.setHandler('discover', async () => {
       this.log('Pair: broadcasting UDP discovery...');
@@ -100,6 +105,7 @@ class JuraMachineDriver extends Driver {
     // in GitHub issue #4. Resending the pin on every reconnect after
     // that is not explicitly confirmed.
     session.setHandler('pair', async ({ manualProfileCode, pin } = {}) => {
+      if (activeClient) await activeClient.close().catch(() => {});
       const machine = selectedMachine;
       if (!machine) throw new Error('No machine selected, please go back and pick one');
 
@@ -123,6 +129,7 @@ class JuraMachineDriver extends Driver {
       });
 
       try {
+        activeClient = client;
         const result = await client.pair(60000, (msg) => {
           session.emit('prompt', msg).catch(() => {});
         });
@@ -167,8 +174,15 @@ class JuraMachineDriver extends Driver {
         }
         throw err;
       } finally {
+        if (activeClient === client) activeClient = null;
         await client.close().catch(() => {});
       }
+    });
+
+    // The pair dialog was closed: end the pairing that is still waiting, so the
+    // dongle is free again for the next attempt at once.
+    session.setHandler('disconnect', async () => {
+      if (activeClient) await activeClient.close().catch(() => {});
     });
 
   }
