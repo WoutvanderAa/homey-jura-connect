@@ -1375,6 +1375,19 @@ class JuraMachineDevice extends Device {
           this._pollFailCount = 0;
           this._lastAliveAt = now;
           this._healthPolls.busy += 1;
+          // A tile that went unavailable before this connection (the machine
+          // was off, or the dongle was held by another app) is not left with
+          // its old failure text for as long as the machine stays busy: when the
+          // busy run has lasted TIMING.UNAVAILABLE_AFTER_MS, as long as a
+          // tile may go without a sign of life, it is set available again. A
+          // short busy period (the rinse after switching on, about 30 s) keeps
+          // the tile as it was until a status is read (see _pollSucceeded).
+          // Once: when Homey has taken the call the tile is available, and the
+          // line is written then (see _setTile).
+          if (this._available === false && now - this._busySince >= this._timing.UNAVAILABLE_AFTER_MS) {
+            this._lastFailText = '';
+            this._setTile(true, 'the machine answers but is busy (a programme is running).');
+          }
           if (busyTooLong) {
             this._busySince = null;
             const busyText = `Machine answered busy for more than ${this._timing.BUSY_MAX_MS / 1000} s without sending a status`;
@@ -1890,9 +1903,10 @@ class JuraMachineDevice extends Device {
   /**
    * A poll has read a status: the machine is alive, and the tile is set
    * available when it was not, or when that is not known (see onInit). This
-   * is the only place that does so; connecting alone proves nothing. (A busy
-   * round also counts as a sign of life, but only keeps the tile from going
-   * unavailable: see _poll.)
+   * is the only place that does so for a status; connecting alone proves
+   * nothing. (A busy round also counts as a sign of life: it keeps the tile
+   * from going unavailable, and a busy run of TIMING.UNAVAILABLE_AFTER_MS sets
+   * a tile that is unavailable available again: see _poll.)
    */
   _pollSucceeded() {
     this._lastAliveAt = this._monotonicNow();
@@ -1924,7 +1938,9 @@ class JuraMachineDevice extends Device {
    * repeated by the next poll. A line in the log says what Homey was told, once
    * it has taken the call and not before. Never rejects.
    * @param {boolean} available
-   * @param {string} [text]
+   * @param {string} [text] for an unavailable tile what it says; for an
+   *   available one why it is available again, in that line (when left out:
+   *   that a status was read)
    */
   async _setTile(available, text) {
     if (this._tileCallPending) return;
@@ -1942,7 +1958,7 @@ class JuraMachineDevice extends Device {
       } else if (wasAvailable === null) {
         this.log('Tile available: first status after app start.');
       } else if (wasAvailable === false) {
-        this.log('Tile available again: a status was read.');
+        this.log(`Tile available again: ${text || 'a status was read.'}`);
       }
     } catch (err) {
       this.error(
