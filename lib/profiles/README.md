@@ -77,10 +77,11 @@ change — they all already read models generically through
 
 ## Verification checklist (do this before trusting a new profile)
 
-The recipe blob encoding (`buildRecipeHex` in `../profile.js`) is a
-protocol-level constant confirmed across multiple models by the
-upstream `jura_connect` project, so it should be correct by
-construction. Still worth checking on real hardware:
+The recipe blob encoding (`buildRecipeHex` in `../profile.js`) follows the
+upstream `jura_connect` project and the J.O.E. app. The 16-byte form is
+confirmed on real machines; the 17/20-byte form for products with an F17
+parameter (grinder freeness, on IntakeF18 machines) is not. Check on real
+hardware:
 
 - [ ] Pairing handshake completes and returns an auth hash
 - [ ] `@HU?` status reads back a plausible `@TF:` frame (not an error)
