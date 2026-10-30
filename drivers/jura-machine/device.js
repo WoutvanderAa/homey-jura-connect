@@ -697,6 +697,37 @@ class JuraMachineDevice extends Device {
       }
     }
 
+    // The water amounts the same way, before any side effect: a value the
+    // machine's range or step does not allow would otherwise save fine and
+    // then make every brew of that product fail in encodeParam (see _brewBy,
+    // which passes these three settings on as water_amount). Checked with
+    // profileLib.encodeParam itself, so the rules cannot drift from the
+    // brew's, against the product the brew path uses for it (for hot water
+    // the one resolveHotwaterProductName picks). 0 means the machine's own
+    // default and is never rejected, and a product or parameter this profile
+    // does not have is not rejected either.
+    for (const [settingKey, productName, label] of [
+      ['coffee_ml', 'coffee', 'Coffee (ml)'],
+      ['espresso_ml', 'espresso', 'Espresso (ml)'],
+      ['hotwater_ml', resolveHotwaterProductName(newProfile), 'Hot water (ml)'],
+    ]) {
+      const amount = newSettings[settingKey];
+      if (amount > 0 && (changedKeys.includes(settingKey) || changedKeys.includes('profile_code'))) {
+        const product = newProfile.products.find((p) => p.name === productName);
+        const param = product && product.params.find((p) => p.kind === 'water_amount');
+        if (param) {
+          try {
+            profileLib.encodeParam(param, amount);
+          } catch {
+            const min = param.min == null ? 0 : param.min;
+            const max = param.max == null ? 0xff : param.max;
+            const steps = param.step && param.step > 1 ? `, in steps of ${param.step}` : '';
+            throw new Error(`${label} must be between ${min} and ${max} ml${steps}, for this machine.`);
+          }
+        }
+      }
+    }
+
     if (changedKeys.includes('profile_code')) {
       // A corrected profile can add or remove hot water support --
       // passed newSettings explicitly since _syncHotwaterCapability
