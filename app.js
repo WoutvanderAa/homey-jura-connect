@@ -2,6 +2,7 @@
 
 const { App } = require('homey');
 const models = require('./lib/models');
+const profileLib = require('./lib/profile');
 
 class JuraConnectApp extends App {
 
@@ -20,11 +21,38 @@ class JuraConnectApp extends App {
     brewAction.registerRunListener(async (args) => {
       const overrides = {};
       if (args.strength && args.strength.id) {
-        overrides.coffee_strength = args.strength.id;
+        // The strength argument keeps its value when the user changes the
+        // product in the same card, so check it against the product that is
+        // selected now (same lookup as the strength autocomplete below). A
+        // product without an adjustable strength just ignores it (the
+        // argument is optional); one that has it but not this level fails
+        // with a sentence, before anything is sent.
+        const product = getDeviceProfile(args.device).products.find((p) => p.name === args.product.id);
+        const strengthParam = product && product.params.find((p) => p.kind === 'coffee_strength');
+        if (strengthParam) {
+          if (!strengthParam.items.some((it) => it.name === args.strength.id)) {
+            throw new Error(
+              `Pick the strength again in this card: "${args.strength.id}" is not available for ${product.rawName}.`
+            );
+          }
+          overrides.coffee_strength = args.strength.id;
+        }
       }
       await args.device.brew(args.product.id, overrides);
       return true;
     });
+
+    // Only products whose recipe builds without any override are offered: a
+    // product that cannot be built (EF562's 2 Ristretti, the F17 products of
+    // EF1106/EF1208/EF1119/EF1123) would fail on every run.
+    const buildsWithoutOverrides = (product) => {
+      try {
+        profileLib.buildRecipeHex(product, {});
+        return true;
+      } catch {
+        return false;
+      }
+    };
 
     // The brewable set differs per profile (EF533 vs EF533V2 vs ...),
     // so the picker is filled from the device's own profile rather
@@ -34,6 +62,7 @@ class JuraConnectApp extends App {
       const q = query.trim().toLowerCase();
       return profile.products
         .filter((p) => p.active !== false)
+        .filter(buildsWithoutOverrides)
         .filter((p) => !q || p.rawName.toLowerCase().includes(q) || p.name.includes(q))
         .map((p) => ({ id: p.name, name: p.rawName }));
     });
