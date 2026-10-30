@@ -170,7 +170,12 @@
   function connectManually() {
     const errEl = document.getElementById('manual-err');
     errEl.style.display = 'none';
-    const address = document.getElementById('manual-ip').value.trim();
+    // The field opens a number keyboard (inputmode="decimal"), and on a phone set
+    // to for example Dutch or German that keyboard has a comma instead of a dot.
+    // So a comma counts as a dot, and the field shows the address with dots.
+    const field = document.getElementById('manual-ip');
+    const address = field.value.trim().replace(/,/g, '.');
+    field.value = address;
     const m = IPV4_RE.exec(address);
     if (!m || m.slice(1).some((part) => Number(part) > 255)) {
       errEl.textContent = 'Enter a valid IPv4 address, e.g. 192.168.1.50';
