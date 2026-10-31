@@ -37,19 +37,48 @@ or alarms have been confirmed on those two so far.
 
 Every other bundled model shows as "experimental, untested" in the
 pairing and settings picker. Does it work on your model, or not?
-Report it via the "Model verification report" issue template, that's
-how a model gets flipped to verified.
+Report it via the [Model verification report](https://github.com/WoutvanderAa/homey-jura-connect/issues/new?template=model_verification.yml)
+issue template, that's how a model gets flipped to verified.
 
-During pairing the app recognises your model automatically from the
-discovery reply. If you enter the IP address manually instead, pick
-the model yourself from the list.
+Coffee and espresso can be brewed on the Z10 (EB), Z10 (EC), S10 (EA)
+and E10 (EA) from version 0.13.1. Before that, these drinks could not
+be brewed on those four models at all. It has not been tried on a real
+machine yet, so the four stay experimental. If you own one, please
+brew a coffee or an espresso and send the result with the model
+verification report. A report that it does not work helps just as much.
+
+## Pairing
+
+1. Switch the machine on and close the J.O.E. app if it is connected.
+   The dongle only accepts one connection at a time.
+2. In Homey, add a device and choose Jura Connect. The app scans your
+   network and lists each machine it finds. Under the name is a line
+   with the address, firmware, article number (art.) and hardware code
+   (hwId), and under that the model the app made of it. Tap your
+   machine. If it is not listed (for example on another VLAN), type
+   its IP address in the field under the list.
+3. If that line says "Model not recognised: you pick it on the next
+   screen", or you typed the IP address, you pick your model from a
+   list on the next screen. Choose the closest match, you can correct
+   it later in the device settings. Is your model missing? See
+   [Reporting a problem](#reporting-a-problem).
+
+While it connects, two things can come up:
+
+- The machine shows a "Connect" prompt on its own display. Confirm it
+  there within about a minute (usually OK or the checkmark, on some
+  models the bean button). If you miss it, the app shows an error and
+  a "Try again" button.
+- If you set a PIN in the J.O.E. app, the app asks for it. It is
+  hidden while you type. If the machine refuses it, the app says so
+  and you can try again.
 
 ## Features
 
 | Capability | What it shows |
 |---|---|
 | `onoff` | On/off state, read-only |
-| `alarm_generic` | Needs attention (any active error) |
+| `alarm_generic` | Needs attention (a real fault; normal states such as heating up or switching off do not count) |
 | `alarm_water` | Water tank empty |
 | `alarm_beans` | Out of beans |
 | `alarm_tray` | Drip tray or grounds container full |
@@ -71,12 +100,14 @@ settings, under Statistics.
 
 - Alarms follow the status the machine sends by itself, so they show
   within seconds.
-- Short events, such as taking out the drip tray to empty it, now
-  always trigger your flows. Notification flows may fire more often
-  than before.
+- Short events, such as taking out the drip tray to empty it, trigger
+  your flows too. A flow that sends a notification fires each time
+  one of these happens.
 - When you switch the machine off, the tile becomes unavailable at
-  once with "The machine is switched off.", and "Needs attention"
-  does not come on.
+  once with "The machine is switched off.".
+- Switching off and heating up are normal states, not faults. They do
+  not turn on "Needs attention" or put a warning on the tile, on any
+  model. A real fault at the same time still does.
 - A brew asked for while the machine is still busy with a drink or a
   rinse is not sent. The tile or flow card says so: "The machine is
   busy (a drink or a rinse is running), so this brew command was not
@@ -85,7 +116,12 @@ settings, under Statistics.
 ## Settings
 
 Water amounts (ml) for coffee, espresso and hot water. 0 uses the
-default from the machine's own profile.
+default from the machine's own profile. Any other amount has to fit
+what your machine allows for that drink, and that differs per drink
+and per machine (an E8 takes 25 to 240 ml for coffee and 15 to 80 ml
+for espresso, in steps of 5). An amount outside that is rejected when
+you save, with a message such as "Espresso (ml) must be between 15
+and 80 ml, in steps of 5, for this machine."
 
 Strength for coffee and espresso is the level number your machine
 itself shows, on whatever scale that machine uses: a numeric scale
@@ -96,10 +132,18 @@ label above each field shows the numbers your specific machine has.
 you've dialled in on the machine itself (the app can't read that). A
 value your machine doesn't have is rejected when you save.
 
+Machine IP address is filled in at pairing. Change it if your router
+gave the machine a new address. The same rule applies as for the
+manual IP field, see Known limitations.
+
 ## Known limitations
 
 - UDP discovery doesn't cross VLANs: use the manual IP field and pick
-  the model yourself.
+  the model yourself. That field, and the Machine IP address setting,
+  only accept an IPv4 address on your local network: 192.168.x.x,
+  10.x.x.x or 172.16.x.x to 172.31.x.x (169.254.x.x and 100.64.x.x to
+  100.127.x.x work too). Host names, internet addresses, spaces and
+  leading zeros are refused.
 - After the machine's own auto-off timer kicks in, the dongle goes
   unreachable too. There's no way to wake it remotely.
 - Remote on/off isn't possible; the dongle ignores that command.
@@ -125,8 +169,22 @@ to the internet.
 
 Use the GitHub issue templates: bug report, feature request, model
 request (your machine is not in the list yet), or model verification.
-Including a Homey diagnostics report ID helps a lot. The hwId that the
-model forms ask for is shown on the Homey pairing screen.
+Including a Homey diagnostics report ID helps a lot.
+
+The model forms ask for the firmware, article number (art.) and hwId
+of your machine. With app version 0.13.1 or later they are shown on
+the Homey pairing screen, in the line under the name of each machine
+the scan found. Copy only the firmware, art. and hwId, not the
+address. Already paired? Choose Add device again and stop at the
+list, you do not have to pick anything.
+
+A machine you added with the IP address field is not in the scan list
+and shows no hwId. In the [Model request form](https://github.com/WoutvanderAa/homey-jura-connect/issues/new?template=model_request.yml)
+write "not found" for the hwId and firmware (the article number is
+also on the machine's type plate). In the model verification form,
+leave the hwId empty.
+
+Please do not post your PIN, your WiFi password or your IP address.
 
 ## Credits
 

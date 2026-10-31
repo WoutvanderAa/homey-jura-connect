@@ -1,5 +1,5 @@
 name: Model verification report
-description: You paired a Jura model other than the E8 — let us know how it went so it can be flipped to "verified".
+description: "Your Jura model still shows as \"experimental, untested\" in the app. Tell us how it went so it can be flipped to \"verified\"."
 title: "[Model] "
 labels:
   - model-verification
@@ -7,9 +7,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing! Every bundled model except the E8 is currently labeled
-        "experimental, untested" — this report is exactly how that gets fixed for
-        the next person with your machine.
+        Thanks for testing! Models that are not fully confirmed yet are labeled "experimental, untested"
+        in the app. This report is exactly how that gets fixed for the next person
+        with your machine.
 
         Not sure what some of this means? Fill in what you can, the rest is optional.
 
@@ -51,7 +51,7 @@ body:
     id: status
     attributes:
       label: Does live status reporting work?
-      description: Ready/heating/needs water/needs beans/tray full etc. showing up correctly on the device tile
+      description: Needs water, needs beans, tray full, tray missing and on/off showing up correctly on the device tile
       options:
         - "Yes, looks correct"
         - "Partially — some states are wrong or missing"
