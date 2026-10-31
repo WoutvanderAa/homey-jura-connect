@@ -1432,19 +1432,24 @@ class JuraMachineDevice extends Device {
             this._loggedMaintenanceLine = maintenanceLine;
             this.log('Maintenance %:', maintenanceLine);
           }
-          // The same three readings as labels. Unlike the capabilities
-          // below, a 0xFF (type not tracked by this machine) shows the
-          // placeholder here instead of being left alone, so the label
-          // doesn't keep an old percentage.
+          // The same three readings as labels. A 0xFF (type not tracked by
+          // this machine) shows the placeholder here, so the label doesn't
+          // keep an old percentage (the capabilities below are cleared for
+          // it too).
           const shown = (value) => (value === 0xff ? STATISTICS_PLACEHOLDER : `${value}%`);
           statistics.maintenance_cleaning = shown(maint.cleaning);
           statistics.maintenance_filter = shown(maint.filterChange);
           statistics.maintenance_descale = shown(maint.descale);
           // 0xFF (255) means this machine doesn't track that maintenance
-          // type (e.g. no water filter cartridge fitted) -- leave the
-          // capability alone rather than showing a nonsense 255%.
+          // type (e.g. no water filter cartridge fitted) -- clear the
+          // capability (null, once) rather than showing a nonsense 255% or
+          // keeping an old percentage, and fire no trigger for it. The next
+          // tracked reading then starts from null, like a first one (see below).
           const setIfTracked = (cap, value) => {
-            if (value === 0xff) return;
+            if (value === 0xff) {
+              if (this.getCapabilityValue(cap) !== null) this.setCapabilityValue(cap, null).catch(this.error);
+              return;
+            }
             const previousValue = this.getCapabilityValue(cap);
             this.setCapabilityValue(cap, value).catch(this.error);
             // previousValue is null the very first time this is ever read
