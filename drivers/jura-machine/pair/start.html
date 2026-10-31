@@ -170,9 +170,8 @@
   function connectManually() {
     const errEl = document.getElementById('manual-err');
     errEl.style.display = 'none';
-    // The field opens a number keyboard (inputmode="decimal"), and on a phone set
-    // to for example Dutch or German that keyboard has a comma instead of a dot.
-    // So a comma counts as a dot, and the field shows the address with dots.
+    // A comma counts as a dot: the input listener below swaps it while typing,
+    // this covers a value that was set without an input event.
     const field = document.getElementById('manual-ip');
     const address = field.value.trim().replace(/,/g, '.');
     field.value = address;
@@ -193,6 +192,23 @@
   }
 
   document.getElementById('manual-connect').addEventListener('click', connectManually);
+
+  // The field opens a number keyboard (inputmode="decimal"), and on a phone set to
+  // for example Dutch or German that keyboard has a comma instead of a dot. Show the
+  // dot as soon as a comma is typed or pasted, so the field reads as a normal IPv4
+  // address. Only rewrite when there is a comma: setting the value on every keystroke
+  // can disturb the caret on iOS. The length stays the same, so the caret is put back.
+  document.getElementById('manual-ip').addEventListener('input', () => {
+    const field = document.getElementById('manual-ip');
+    if (field.value.indexOf(',') === -1) return;
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    field.value = field.value.replace(/,/g, '.');
+    if (typeof field.setSelectionRange === 'function' && typeof start === 'number' && typeof end === 'number') {
+      field.setSelectionRange(start, end);
+    }
+  });
+
   document.getElementById('manual-ip').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') connectManually();
   });
